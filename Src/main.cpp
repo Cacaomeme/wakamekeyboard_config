@@ -31,9 +31,15 @@ volatile uint8_t last_payload[4] = {0};
 // ===== Feature Report コマンドID =====
 #define CMD_SET_SENSITIVITY  0x01
 #define CMD_GET_SENSITIVITY  0x02
+#define CMD_SET_KEYCODE      0x03
+#define CMD_GET_KEYCODE      0x04
+#define CMD_SET_DEADZONE     0x05
+#define CMD_GET_DEADZONE     0x06
 #define CMD_SAVE_TO_FLASH    0x10
 #define CMD_RESET_DEFAULTS   0x11
 #define CMD_GET_KEY_COUNT    0x20
+#define CMD_SET_LED_MODE     0x30
+#define CMD_GET_LED_MODE     0x31
 
 // 応答ステータス
 #define RESP_OK              0x00
@@ -99,6 +105,94 @@ extern "C" void ProcessFeatureReport(uint8_t* data, uint16_t len, uint8_t* respo
             response[2] = (uint8_t)(s & 0xFF);
             response[3] = (uint8_t)(s >> 8);
         }
+        break;
+    }
+    case CMD_SET_KEYCODE: {
+        // local[1]=keyIndex, local[2]=keycode
+        uint8_t keyIdx = local[1];
+        uint8_t code = local[2];
+        if (keyIdx >= RapidTriggerKeyboard::TOTAL_KEY_COUNT || code == 0 || code >= 120) {
+            response[1] = RESP_INVALID_PARAM;
+            break;
+        }
+        keyboard.setKeycode(keyIdx, code);
+        response[1] = RESP_OK;
+        printf("[CFG] SetKeycode Key:%d Code:0x%02X\r\n", keyIdx, code);
+        break;
+    }
+    case CMD_GET_KEYCODE: {
+        uint8_t keyIdx = local[1];
+        if (keyIdx == 0xFF) {
+            // 全キーのキーコードを返す
+            response[1] = RESP_OK;
+            int count = RapidTriggerKeyboard::TOTAL_KEY_COUNT;
+            if (count > 30) count = 30; // 32バイト制限
+            for (int i = 0; i < count; i++) {
+                response[2 + i] = keyboard.getKeycode(i);
+            }
+        } else if (keyIdx < RapidTriggerKeyboard::TOTAL_KEY_COUNT) {
+            response[1] = RESP_OK;
+            response[2] = keyboard.getKeycode(keyIdx);
+        } else {
+            response[1] = RESP_INVALID_PARAM;
+        }
+        break;
+    }
+    case CMD_SET_DEADZONE: {
+        // local[1]=keyIndex, local[2..3]=value (uint16_t LE)
+        uint8_t keyIdx = local[1];
+        uint16_t value = (uint16_t)local[2] | ((uint16_t)local[3] << 8);
+        if (value > 500) {
+            response[1] = RESP_INVALID_PARAM;
+            break;
+        }
+        keyboard.setDeadZone((int)keyIdx, (uint32_t)value);
+        response[1] = RESP_OK;
+        printf("[CFG] SetDZ Key:%d Val:%d\r\n", keyIdx, value);
+        break;
+    }
+    case CMD_GET_DEADZONE: {
+        uint8_t keyIdx = local[1];
+        if (keyIdx == 0xFF) {
+            response[1] = RESP_OK;
+            int count = RapidTriggerKeyboard::TOTAL_KEY_COUNT;
+            if (count > 15) count = 15;
+            for (int i = 0; i < count; i++) {
+                uint16_t dz = (uint16_t)keyboard.getDeadZone(i);
+                response[2 + i * 2] = (uint8_t)(dz & 0xFF);
+                response[2 + i * 2 + 1] = (uint8_t)(dz >> 8);
+            }
+        } else if (keyIdx < RapidTriggerKeyboard::TOTAL_KEY_COUNT) {
+            response[1] = RESP_OK;
+            uint16_t dz = (uint16_t)keyboard.getDeadZone(keyIdx);
+            response[2] = (uint8_t)(dz & 0xFF);
+            response[3] = (uint8_t)(dz >> 8);
+        } else {
+            response[1] = RESP_INVALID_PARAM;
+        }
+        break;
+    }
+    case CMD_SET_LED_MODE: {
+        // local[1]=mode, local[2]=brightness, local[3]=speed
+        uint8_t mode = local[1];
+        uint8_t bright = local[2];
+        uint8_t spd = local[3];
+        if (mode >= LED_MODE_COUNT) {
+            response[1] = RESP_INVALID_PARAM;
+            break;
+        }
+        keyboard.ledConfig.mode = (LedMode)mode;
+        keyboard.ledConfig.brightness = bright;
+        if (spd <= 100) keyboard.ledConfig.speed = spd;
+        response[1] = RESP_OK;
+        printf("[CFG] SetLED mode:%d bright:%d speed:%d\r\n", mode, bright, spd);
+        break;
+    }
+    case CMD_GET_LED_MODE: {
+        response[1] = RESP_OK;
+        response[2] = (uint8_t)keyboard.ledConfig.mode;
+        response[3] = keyboard.ledConfig.brightness;
+        response[4] = keyboard.ledConfig.speed;
         break;
     }
     case CMD_SAVE_TO_FLASH: {
@@ -204,7 +298,7 @@ extern "C" void loop()
         printf("[CFG] Key:%d Sens:%d\r\n", config_target, (int)config_val);
     }
 
-    // キー押下検出 → LED最大輝度
+    // キー押下検出 → LEDモードに応じた制御
     {
         KeyboardReport* rpt = keyboard.getReport();
         bool any_key = (rpt->MODIFIER != 0);
@@ -213,8 +307,21 @@ extern "C" void loop()
                 if (rpt->KEYS[i] != 0) { any_key = true; break; }
             }
         }
-        if (any_key) {
-            led_brightness = 255;
+
+        LedMode mode = keyboard.ledConfig.mode;
+        uint8_t maxBright = keyboard.ledConfig.brightness;
+
+        if (mode == LED_MODE_FADE) {
+            // Fade: キー押下→最大輝度、TIM6で減光
+            if (any_key) led_brightness = maxBright;
+        } else if (mode == LED_MODE_SOLID) {
+            // Solid: キー押下中=点灯、離すと即消灯
+            led_brightness = any_key ? maxBright : 0;
+        } else if (mode == LED_MODE_BLINK || mode == LED_MODE_BREATHING) {
+            // Blink/Breathing: TIM6側で制御
+            // any_keyフラグをグローバルで渡す
+        } else if (mode == LED_MODE_OFF) {
+            led_brightness = 0;
         }
     }
 
@@ -290,21 +397,68 @@ extern "C" void loop()
     }
 }
 
-// TIM6 割り込みコールバック: LED減光処理 (知覚リニア)
+// TIM6 割り込みコールバック: LEDエフェクト処理
 extern "C" void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
     if (htim->Instance == TIM6) {
-        // TIM6: Prescaler=0, Period=65535 @ 170MHz → 約386µs周期 (≒2593Hz)
-        // サブカウンタで10分周 → 約3.86msごとに1段階減少
-        // 255段階 × 3.86ms ≈ 984ms ≈ 1秒で完全消灯
         static uint32_t sub_counter = 0;
-        sub_counter++;
-        if (sub_counter >= 10) {
-            sub_counter = 0;
-            if (led_brightness > 0) {
-                led_brightness--;
+        static uint32_t effect_counter = 0;
+        static bool blink_on = false;
+
+        LedMode mode = keyboard.ledConfig.mode;
+        uint8_t maxBright = keyboard.ledConfig.brightness;
+        uint8_t speed = keyboard.ledConfig.speed; // 0-100 (0.0-10.0)
+
+        // speed: 0=最遅, 100=最速。アキュムレータ方式で0.1刻み対応
+        // divider = 110 - speed (10〜110), カウンタ += 3 (低速寄り)
+        uint32_t threshold = 110 - speed;
+        sub_counter += 3;
+
+        if (sub_counter >= threshold) {
+            sub_counter -= threshold;
+            effect_counter++;
+
+            switch (mode) {
+            case LED_MODE_FADE:
+                // 徐々に減光 (キー押下でled_brightnessがmaxBrightにセットされる)
+                if (led_brightness > 0) led_brightness--;
+                break;
+
+            case LED_MODE_BLINK:
+                // 約256カウントで1周期の点滅
+                if (effect_counter >= 128) {
+                    effect_counter = 0;
+                    blink_on = !blink_on;
+                }
+                led_brightness = blink_on ? maxBright : 0;
+                break;
+
+            case LED_MODE_BREATHING: {
+                // サイン波近似: 三角波で呼吸エフェクト
+                uint32_t phase = effect_counter % 512;
+                uint32_t level;
+                if (phase < 256) {
+                    level = phase; // 0→255
+                } else {
+                    level = 511 - phase; // 255→0
+                }
+                led_brightness = (level * maxBright) / 255;
+                break;
+            }
+
+            case LED_MODE_SOLID:
+                // loop()側で制御 (キー押下=ON、離す=OFF)
+                break;
+
+            case LED_MODE_OFF:
+                led_brightness = 0;
+                break;
+
+            default:
+                break;
             }
         }
+
         // ガンマ2.0補正: PWM = brightness² (0-65025)
         uint32_t pwm_val = (uint32_t)led_brightness * led_brightness;
         __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_2, pwm_val);

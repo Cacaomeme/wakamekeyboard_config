@@ -16,6 +16,7 @@
             --text: #e8e8f0;
             --text-muted: #8888a0;
             --accent: #6c5ce7;
+            --accent-light: #a29bfe;
             --accent-glow: rgba(108, 92, 231, 0.3);
             --success: #00d68f;
             --warning: #f0a030;
@@ -38,21 +39,20 @@
         }
 
         .app {
-            max-width: 820px;
+            max-width: 900px;
             margin: 0 auto;
-            padding: 32px 24px;
+            padding: 24px 20px;
         }
 
         /* Header */
         .header {
             text-align: center;
-            margin-bottom: 32px;
+            margin-bottom: 24px;
         }
 
         .header h1 {
-            font-size: 1.5rem;
+            font-size: 1.4rem;
             font-weight: 600;
-            letter-spacing: -0.02em;
             background: linear-gradient(135deg, #6c5ce7, #a29bfe);
             -webkit-background-clip: text;
             background-clip: text;
@@ -61,58 +61,58 @@
 
         .header p {
             color: var(--text-muted);
-            font-size: 0.85rem;
-            margin-top: 4px;
+            font-size: 0.8rem;
+            margin-top: 2px;
         }
 
         /* Connection bar */
-        .connection-bar {
+        .conn-bar {
             display: flex;
             align-items: center;
             gap: 12px;
             background: var(--surface);
             border: 1px solid var(--border);
             border-radius: var(--radius);
-            padding: 16px 20px;
-            margin-bottom: 24px;
+            padding: 12px 16px;
+            margin-bottom: 12px;
         }
 
-        .status-dot {
+        .dot {
             width: 10px;
             height: 10px;
             border-radius: 50%;
             background: var(--danger);
-            transition: background 0.3s, box-shadow 0.3s;
+            transition: all 0.3s;
         }
 
-        .status-dot.connected {
+        .dot.on {
             background: var(--success);
             box-shadow: 0 0 8px rgba(0, 214, 143, 0.5);
         }
 
-        .status-text {
+        .conn-status {
             flex: 1;
-            font-size: 0.9rem;
+            font-size: 0.85rem;
             color: var(--text-muted);
         }
 
-        .status-text.connected {
+        .conn-status.on {
             color: var(--success);
         }
 
         /* Buttons */
         .btn {
-            padding: 10px 20px;
+            padding: 8px 16px;
             border: none;
             border-radius: 8px;
             font-family: inherit;
-            font-size: 0.85rem;
+            font-size: 0.8rem;
             font-weight: 500;
             cursor: pointer;
             transition: all 0.2s;
             display: inline-flex;
             align-items: center;
-            gap: 6px;
+            gap: 5px;
         }
 
         .btn:disabled {
@@ -166,12 +166,21 @@
             font-size: 0.75rem;
         }
 
-        /* Toolbar */
-        .toolbar {
+        /* Action bar (always visible) */
+        .action-bar {
             display: flex;
             gap: 8px;
-            margin-bottom: 20px;
             flex-wrap: wrap;
+            align-items: center;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 10px 16px;
+            margin-bottom: 16px;
+        }
+
+        .action-bar .spacer {
+            flex: 1;
         }
 
         /* Confirm bar */
@@ -182,25 +191,25 @@
             background: rgba(255, 107, 107, 0.08);
             border: 1px solid rgba(255, 107, 107, 0.3);
             border-radius: var(--radius);
-            padding: 12px 18px;
-            margin-bottom: 16px;
-            animation: slideIn 0.2s ease-out;
+            padding: 10px 16px;
+            margin-bottom: 12px;
+            animation: slideIn 0.2s;
         }
 
         .confirm-bar.show {
             display: flex;
         }
 
-        .confirm-bar .confirm-msg {
+        .confirm-bar .msg {
             flex: 1;
-            font-size: 0.85rem;
+            font-size: 0.8rem;
             color: var(--danger);
         }
 
         @keyframes slideIn {
             from {
                 opacity: 0;
-                transform: translateY(-8px);
+                transform: translateY(-6px);
             }
 
             to {
@@ -209,57 +218,181 @@
             }
         }
 
-        /* Key grid */
-        .key-grid {
-            display: grid;
-            gap: 8px;
+        /* Tabs */
+        .tabs {
+            display: flex;
+            gap: 4px;
+            margin-bottom: 20px;
+            border-bottom: 1px solid var(--border);
         }
 
-        .key-card {
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: var(--radius);
-            padding: 14px 18px;
-            display: grid;
-            grid-template-columns: 80px 1fr 70px;
-            align-items: center;
-            gap: 12px;
-            transition: border-color 0.2s, box-shadow 0.2s;
+        .tab {
+            padding: 10px 20px;
+            border: none;
+            background: transparent;
+            font-family: inherit;
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: var(--text-muted);
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+            margin-bottom: -1px;
         }
 
-        .key-card:hover {
-            border-color: rgba(108, 92, 231, 0.4);
-        }
-
-        .key-card.modified {
-            border-color: var(--warning);
-            box-shadow: 0 0 0 1px rgba(240, 160, 48, 0.15);
-        }
-
-        .key-name {
-            font-weight: 600;
-            font-size: 0.95rem;
+        .tab:hover {
             color: var(--text);
         }
 
-        .key-name .key-idx {
-            font-size: 0.7rem;
-            color: var(--text-muted);
-            font-weight: 400;
-            margin-left: 4px;
+        .tab.active {
+            color: var(--accent-light);
+            border-bottom-color: var(--accent);
         }
 
-        .slider-wrap {
+        .tab-panel {
+            display: none;
+        }
+
+        .tab-panel.active {
+            display: block;
+        }
+
+        /* ===== Tab 0: Key Config ===== */
+        .key-layout {
+            display: flex;
+            gap: 24px;
+        }
+
+        .numpad-area {
+            flex-shrink: 0;
+        }
+
+        .numpad-svg .key-rect {
+            fill: var(--surface);
+            stroke: var(--border);
+            stroke-width: 1.5;
+            rx: 6;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .numpad-svg .key-rect:hover {
+            fill: var(--surface-hover);
+            stroke: var(--accent);
+        }
+
+        .numpad-svg .key-rect.selected {
+            fill: rgba(108, 92, 231, 0.15);
+            stroke: var(--accent);
+            stroke-width: 2;
+        }
+
+        .numpad-svg .key-rect.modified {
+            stroke: var(--warning);
+        }
+
+        .numpad-svg .key-label {
+            fill: var(--text);
+            font-family: 'Inter', sans-serif;
+            font-size: 12px;
+            font-weight: 500;
+            pointer-events: none;
+            dominant-baseline: central;
+            text-anchor: middle;
+        }
+
+        .detail-panel {
+            flex: 1;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 20px;
+            min-height: 280px;
+        }
+
+        .detail-panel h3 {
+            font-size: 1rem;
+            margin-bottom: 16px;
+            color: var(--accent-light);
+        }
+
+        .detail-empty {
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            text-align: center;
+            padding-top: 80px;
+        }
+
+        .param-row {
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 12px;
+            padding: 10px 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .param-row:last-child {
+            border-bottom: none;
+        }
+
+        .param-label {
+            width: 110px;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            flex-shrink: 0;
+        }
+
+        .param-slider {
+            flex: 1;
+        }
+
+        .param-num {
+            width: 60px;
+            padding: 5px 8px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            background: var(--bg);
+            color: var(--text);
+            font-family: inherit;
+            font-size: 0.8rem;
+            text-align: center;
+            outline: none;
+            -webkit-appearance: textfield;
+            -moz-appearance: textfield;
+            appearance: textfield;
+        }
+
+        .param-num::-webkit-inner-spin-button,
+        .param-num::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+            appearance: none;
+            margin: 0;
+        }
+
+        .param-num:focus {
+            border-color: var(--accent);
+        }
+
+        .param-select {
+            padding: 6px 10px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            background: var(--bg);
+            color: var(--text);
+            font-family: inherit;
+            font-size: 0.8rem;
+            outline: none;
+        }
+
+        .param-select:focus {
+            border-color: var(--accent);
         }
 
         input[type="range"] {
             -webkit-appearance: none;
             appearance: none;
             width: 100%;
-            height: 6px;
+            height: 5px;
             border-radius: 3px;
             background: var(--border);
             outline: none;
@@ -268,8 +401,8 @@
         input[type="range"]::-webkit-slider-thumb {
             -webkit-appearance: none;
             appearance: none;
-            width: 18px;
-            height: 18px;
+            width: 16px;
+            height: 16px;
             border-radius: 50%;
             background: var(--accent);
             cursor: pointer;
@@ -277,53 +410,143 @@
         }
 
         input[type="range"]::-webkit-slider-thumb:hover {
-            box-shadow: 0 0 0 6px var(--accent-glow);
+            box-shadow: 0 0 0 5px var(--accent-glow);
         }
 
-        /* Number input */
-        input[type="number"] {
-            width: 65px;
-            padding: 6px 8px;
-            border: 1px solid var(--border);
-            border-radius: 6px;
-            background: var(--bg);
-            color: var(--text);
-            font-family: inherit;
-            font-size: 0.85rem;
-            font-weight: 500;
-            text-align: center;
-            font-variant-numeric: tabular-nums;
-            outline: none;
-            transition: border-color 0.2s;
-            -moz-appearance: textfield;
-        }
-
-        input[type="number"]::-webkit-inner-spin-button,
-        input[type="number"]::-webkit-outer-spin-button {
-            -webkit-appearance: none;
-            margin: 0;
-        }
-
-        input[type="number"]:focus {
-            border-color: var(--accent);
-        }
-
-        /* Toast / log */
-        .log-area {
-            margin-top: 24px;
+        /* Bulk section inside key tab */
+        .bulk-section {
+            margin-top: 20px;
             background: var(--surface);
             border: 1px solid var(--border);
             border-radius: var(--radius);
-            padding: 12px 16px;
-            max-height: 150px;
-            overflow-y: auto;
+            padding: 16px;
+        }
+
+        .bulk-section h4 {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            margin-bottom: 12px;
+        }
+
+        .bulk-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 8px;
+        }
+
+        .bulk-row:last-child {
+            margin-bottom: 0;
+        }
+
+        .bulk-row label {
+            width: 90px;
             font-size: 0.8rem;
+            color: var(--text-muted);
+            flex-shrink: 0;
+        }
+
+        /* ===== Tab 1: LED ===== */
+        .led-modes {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 10px;
+            margin-bottom: 24px;
+        }
+
+        .led-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 16px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .led-card:hover {
+            border-color: var(--accent);
+        }
+
+        .led-card.active {
+            border-color: var(--accent);
+            background: rgba(108, 92, 231, 0.1);
+            box-shadow: 0 0 12px var(--accent-glow);
+        }
+
+        .led-card .led-icon {
+            font-size: 1.8rem;
+            margin-bottom: 6px;
+        }
+
+        .led-card .led-name {
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+
+        .led-card .led-desc {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        .led-preview {
+            height: 40px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .led-sliders {
+            display: grid;
+            gap: 16px;
+        }
+
+        .led-slider-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .led-slider-row label {
+            width: 80px;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            flex-shrink: 0;
+        }
+
+        .led-slider-row input[type="range"] {
+            flex: 1;
+        }
+
+        .led-slider-row .led-val {
+            width: 40px;
+            text-align: right;
+            font-size: 0.85rem;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .led-timing {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            margin-top: 6px;
+        }
+
+        /* Log */
+        .log-area {
+            margin-top: 20px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 10px 14px;
+            max-height: 120px;
+            overflow-y: auto;
+            font-size: 0.75rem;
             font-family: 'JetBrains Mono', monospace;
             color: var(--text-muted);
         }
 
         .log-entry {
-            padding: 2px 0;
+            padding: 1px 0;
         }
 
         .log-entry.success {
@@ -338,15 +561,13 @@
             color: var(--accent);
         }
 
-        /* Responsive */
-        @media (max-width: 600px) {
-            .key-card {
-                grid-template-columns: 1fr;
-                gap: 8px;
+        @media (max-width: 700px) {
+            .key-layout {
+                flex-direction: column;
             }
 
-            .toolbar {
-                flex-direction: column;
+            .led-modes {
+                grid-template-columns: repeat(2, 1fr);
             }
         }
     </style>
@@ -359,316 +580,668 @@
             <p>WebHID Keyboard Configuration Tool</p>
         </div>
 
-        <div class="connection-bar">
-            <div class="status-dot" id="statusDot"></div>
-            <span class="status-text" id="statusText">未接続</span>
-            <button class="btn btn-primary" id="btnConnect" onclick="toggleConnect()">接続</button>
+        <div class="conn-bar">
+            <div class="dot" id="dot"></div>
+            <span class="conn-status" id="connText">未接続</span>
+            <span style="font-size:0.7rem;color:var(--text-muted)" id="devInfo"></span>
+            <button class="btn btn-primary" id="btnConn" onclick="toggleConnect()">接続</button>
         </div>
 
-        <div class="toolbar">
-            <button class="btn btn-outline" id="btnRead" disabled onclick="readAllSensitivity()">📖 読み込み</button>
-            <button class="btn btn-outline" id="btnWrite" disabled onclick="writeAllSensitivity()">📝 書き込み</button>
-            <button class="btn btn-success" id="btnSave" disabled onclick="saveToFlash()">💾 Flashに保存</button>
-            <button class="btn btn-danger" id="btnReset" disabled onclick="showResetConfirm()">🔄 初期化</button>
+        <!-- Action bar (always visible) -->
+        <div class="action-bar">
+            <button class="btn btn-outline btn-sm" disabled id="btnRead" onclick="readAll()">📖 読み込み</button>
+            <button class="btn btn-outline btn-sm" disabled id="btnWrite" onclick="applyAll()"
+                title="全設定をデバイスに反映（電源を切ると元に戻ります）">📝 適用</button>
+            <button class="btn btn-success btn-sm" disabled id="btnSave" onclick="saveToFlash()"
+                title="全設定を永続的に保存します">💾 保存</button>
+            <div class="spacer"></div>
+            <button class="btn btn-danger btn-sm" disabled id="btnReset" onclick="showResetConfirm()">🔄 初期化</button>
         </div>
-
-        <!-- Inline confirmation bar (replaces confirm() dialog) -->
         <div class="confirm-bar" id="confirmBar">
-            <span class="confirm-msg">⚠ 全キーの感度を初期値(50)にリセットします。よろしいですか？</span>
-            <button class="btn btn-danger btn-sm" onclick="doResetDefaults()">実行</button>
+            <span class="msg">⚠ 全設定 (感度・DZ・キーマップ・LED) を初期値にリセットします</span>
+            <button class="btn btn-danger btn-sm" onclick="doReset()">実行</button>
             <button class="btn btn-outline btn-sm" onclick="hideResetConfirm()">キャンセル</button>
         </div>
 
-        <div class="key-grid" id="keyGrid"></div>
+        <!-- Tabs (2 tabs only) -->
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab(0)">⌨ キー設定</button>
+            <button class="tab" onclick="switchTab(1)">💡 LED</button>
+        </div>
+
+        <!-- Tab 0: Key Config -->
+        <div class="tab-panel active" id="panel-0">
+            <div class="key-layout">
+                <div class="numpad-area">
+                    <svg class="numpad-svg" width="260" height="320" viewBox="0 0 260 320">
+                        <!-- Row 0: NumLock / * - -->
+                        <rect class="key-rect" data-key="16" x="5" y="5" width="56" height="56" />
+                        <text class="key-label" data-key="16" x="33" y="33">Num</text>
+                        <rect class="key-rect" data-key="15" x="68" y="5" width="56" height="56" />
+                        <text class="key-label" data-key="15" x="96" y="33">/</text>
+                        <rect class="key-rect" data-key="14" x="131" y="5" width="56" height="56" />
+                        <text class="key-label" data-key="14" x="159" y="33">*</text>
+                        <rect class="key-rect" data-key="13" x="194" y="5" width="56" height="56" />
+                        <text class="key-label" data-key="13" x="222" y="33">-</text>
+                        <!-- Row 1: 7 8 9 + -->
+                        <rect class="key-rect" data-key="12" x="5" y="68" width="56" height="56" />
+                        <text class="key-label" data-key="12" x="33" y="96">7</text>
+                        <rect class="key-rect" data-key="11" x="68" y="68" width="56" height="56" />
+                        <text class="key-label" data-key="11" x="96" y="96">8</text>
+                        <rect class="key-rect" data-key="10" x="131" y="68" width="56" height="56" />
+                        <text class="key-label" data-key="10" x="159" y="96">9</text>
+                        <rect class="key-rect" data-key="9" x="194" y="68" width="56" height="119" />
+                        <text class="key-label" data-key="9" x="222" y="127">+</text>
+                        <!-- Row 2: 4 5 6 -->
+                        <rect class="key-rect" data-key="8" x="5" y="131" width="56" height="56" />
+                        <text class="key-label" data-key="8" x="33" y="159">4</text>
+                        <rect class="key-rect" data-key="7" x="68" y="131" width="56" height="56" />
+                        <text class="key-label" data-key="7" x="96" y="159">5</text>
+                        <rect class="key-rect" data-key="6" x="131" y="131" width="56" height="56" />
+                        <text class="key-label" data-key="6" x="159" y="159">6</text>
+                        <!-- Row 3: 1 2 3 Enter -->
+                        <rect class="key-rect" data-key="5" x="5" y="194" width="56" height="56" />
+                        <text class="key-label" data-key="5" x="33" y="222">1</text>
+                        <rect class="key-rect" data-key="4" x="68" y="194" width="56" height="56" />
+                        <text class="key-label" data-key="4" x="96" y="222">2</text>
+                        <rect class="key-rect" data-key="3" x="131" y="194" width="56" height="56" />
+                        <text class="key-label" data-key="3" x="159" y="222">3</text>
+                        <rect class="key-rect" data-key="2" x="194" y="194" width="56" height="119" />
+                        <text class="key-label" data-key="2" x="222" y="253">Enter</text>
+                        <!-- Row 4: 0 . -->
+                        <rect class="key-rect" data-key="0" x="5" y="257" width="119" height="56" />
+                        <text class="key-label" data-key="0" x="64" y="285">0</text>
+                        <rect class="key-rect" data-key="1" x="131" y="257" width="56" height="56" />
+                        <text class="key-label" data-key="1" x="159" y="285">.</text>
+                    </svg>
+                </div>
+                <div class="detail-panel" id="detailPanel">
+                    <div class="detail-empty" id="detailEmpty">← キーをクリックして設定</div>
+                    <div id="detailContent" style="display:none">
+                        <h3 id="detailTitle">KP 0</h3>
+                        <div class="param-row">
+                            <span class="param-label">感度 (RT)</span>
+                            <input type="range" class="param-slider" id="pSens" min="1" max="1000"
+                                oninput="onDetailSlider('sens')">
+                            <input type="number" class="param-num" id="pSensNum" min="1" max="1000"
+                                onchange="onDetailNum('sens')" onkeydown="if(event.key==='Enter')this.blur();">
+                        </div>
+                        <div class="param-row">
+                            <span class="param-label">デッドゾーン</span>
+                            <input type="range" class="param-slider" id="pDZ" min="0" max="500"
+                                oninput="onDetailSlider('dz')">
+                            <input type="number" class="param-num" id="pDZNum" min="0" max="500"
+                                onchange="onDetailNum('dz')" onkeydown="if(event.key==='Enter')this.blur();">
+                        </div>
+                        <div class="param-row">
+                            <span class="param-label">キーマップ</span>
+                            <select class="param-select" id="pKeymap" onchange="onKeymapChange()"
+                                style="flex:1"></select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bulk settings -->
+            <div class="bulk-section">
+                <h4>🔧 一括設定変更</h4>
+                <div class="bulk-row">
+                    <label>全キー感度</label>
+                    <input type="range" style="flex:1" id="bulkSens" min="1" max="1000" value="50"
+                        oninput="document.getElementById('bulkSensVal').value=this.value">
+                    <input type="number" class="param-num" id="bulkSensVal" min="1" max="1000" value="50"
+                        onchange="document.getElementById('bulkSens').value=this.value"
+                        onkeydown="if(event.key==='Enter')this.blur();">
+                    <button class="btn btn-outline btn-sm" onclick="applyBulk('sens')">適用</button>
+                </div>
+                <div class="bulk-row">
+                    <label>全キーデッドゾーン</label>
+                    <input type="range" style="flex:1" id="bulkDZ" min="0" max="500" value="30"
+                        oninput="document.getElementById('bulkDZVal').value=this.value">
+                    <input type="number" class="param-num" id="bulkDZVal" min="0" max="500" value="30"
+                        onchange="document.getElementById('bulkDZ').value=this.value"
+                        onkeydown="if(event.key==='Enter')this.blur();">
+                    <button class="btn btn-outline btn-sm" onclick="applyBulk('dz')">適用</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 1: LED -->
+        <div class="tab-panel" id="panel-1">
+            <div class="led-modes" id="ledModes">
+                <div class="led-card active" data-mode="0" onclick="selectLedMode(0)">
+                    <div class="led-icon">🌅</div>
+                    <div class="led-name">Fade</div>
+                    <div class="led-desc">キー押下後に減光</div>
+                </div>
+                <div class="led-card" data-mode="1" onclick="selectLedMode(1)">
+                    <div class="led-icon">💫</div>
+                    <div class="led-name">Blink</div>
+                    <div class="led-desc">点滅エフェクト</div>
+                </div>
+                <div class="led-card" data-mode="2" onclick="selectLedMode(2)">
+                    <div class="led-icon">🫧</div>
+                    <div class="led-name">Breathing</div>
+                    <div class="led-desc">呼吸のように明滅</div>
+                </div>
+                <div class="led-card" data-mode="3" onclick="selectLedMode(3)">
+                    <div class="led-icon">☀️</div>
+                    <div class="led-name">Solid</div>
+                    <div class="led-desc">キー押下中は常時点灯</div>
+                </div>
+                <div class="led-card" data-mode="4" onclick="selectLedMode(4)">
+                    <div class="led-icon">🌙</div>
+                    <div class="led-name">Off</div>
+                    <div class="led-desc">LED消灯</div>
+                </div>
+            </div>
+
+            <div class="led-preview" id="ledPreview"></div>
+
+            <div class="led-sliders">
+                <div class="led-slider-row">
+                    <label>輝度</label>
+                    <input type="range" id="ledBright" min="0" max="255" value="255" oninput="updateLedParams()">
+                    <span class="led-val" id="ledBrightVal">255</span>
+                </div>
+                <div class="led-slider-row">
+                    <label>速度</label>
+                    <input type="range" id="ledSpeed" min="0" max="100" value="50" oninput="updateLedParams()">
+                    <span class="led-val" id="ledSpeedVal">5.0</span>
+                </div>
+            </div>
+            <div class="led-timing" id="ledTimingInfo">1周期: --ms</div>
+
+
+        </div>
 
         <div class="log-area" id="logArea"></div>
     </div>
 
     <script>
-        // ===== Config =====
-        const VID = 0x0483;
-        const PID = 0x5750;
+        // ===== Constants =====
+        const VID = 0x0483, PID = 0x5750;
         const CMD = {
-            SET_SENSITIVITY: 0x01,
-            GET_SENSITIVITY: 0x02,
-            SAVE_TO_FLASH: 0x10,
-            RESET_DEFAULTS: 0x11,
+            SET_SENSITIVITY: 0x01, GET_SENSITIVITY: 0x02,
+            SET_KEYCODE: 0x03, GET_KEYCODE: 0x04,
+            SET_DEADZONE: 0x05, GET_DEADZONE: 0x06,
+            SAVE_TO_FLASH: 0x10, RESET_DEFAULTS: 0x11,
             GET_KEY_COUNT: 0x20,
+            SET_LED_MODE: 0x30, GET_LED_MODE: 0x31,
         };
         const RESP = { OK: 0x00, ERROR: 0x01, INVALID: 0x02 };
 
-        // Key names (MUX1 then MUX2, matching nkro.cpp registration order)
+        // Firmware timing: TIM6 Period=65535, Clock=170MHz → ~386µs per TIM6 tick
+        const TIM6_PERIOD_MS = 65536 / 170000; // ≈ 0.3856 ms
+
         const KEY_NAMES = [
-            'KP 0', 'KP .', 'KP Enter', 'KP 3', 'KP 2', 'KP 1', 'KP 6', 'KP 5', 'KP 4',
-            'KP +', 'KP 9', 'KP 8', 'KP 7', 'KP -', 'KP *', 'KP /', 'NumLock'
+            'テンキー 0', 'テンキー .', 'テンキー Enter', 'テンキー 3', 'テンキー 2', 'テンキー 1',
+            'テンキー 6', 'テンキー 5', 'テンキー 4', 'テンキー +', 'テンキー 9', 'テンキー 8',
+            'テンキー 7', 'テンキー -', 'テンキー *', 'テンキー /', 'NumLock'
         ];
 
+        // Default keycodes (matches firmware DEFAULT_KEYCODES)
+        const DEFAULT_KEYCODES = [
+            0x62, 0x63, 0x58, 0x5B, 0x5A, 0x59, 0x5E, 0x5D, 0x5C,
+            0x57, 0x61, 0x60, 0x5F, 0x56, 0x55, 0x54, 0x53
+        ];
+
+        // HID keycode → display name
+        const HID_KEYCODES = [
+            { code: 0x53, name: 'Num Lock' }, { code: 0x54, name: 'KP /' },
+            { code: 0x55, name: 'KP *' }, { code: 0x56, name: 'KP -' },
+            { code: 0x57, name: 'KP +' }, { code: 0x58, name: 'KP Enter' },
+            { code: 0x59, name: 'KP 1' }, { code: 0x5A, name: 'KP 2' },
+            { code: 0x5B, name: 'KP 3' }, { code: 0x5C, name: 'KP 4' },
+            { code: 0x5D, name: 'KP 5' }, { code: 0x5E, name: 'KP 6' },
+            { code: 0x5F, name: 'KP 7' }, { code: 0x60, name: 'KP 8' },
+            { code: 0x61, name: 'KP 9' }, { code: 0x62, name: 'KP 0' },
+            { code: 0x63, name: 'KP .' },
+            { code: 0x04, name: 'A' }, { code: 0x05, name: 'B' },
+            { code: 0x06, name: 'C' }, { code: 0x07, name: 'D' },
+            { code: 0x08, name: 'E' }, { code: 0x09, name: 'F' },
+            { code: 0x0A, name: 'G' }, { code: 0x0B, name: 'H' },
+            { code: 0x0C, name: 'I' }, { code: 0x0D, name: 'J' },
+            { code: 0x0E, name: 'K' }, { code: 0x0F, name: 'L' },
+            { code: 0x10, name: 'M' }, { code: 0x11, name: 'N' },
+            { code: 0x12, name: 'O' }, { code: 0x13, name: 'P' },
+            { code: 0x14, name: 'Q' }, { code: 0x15, name: 'R' },
+            { code: 0x16, name: 'S' }, { code: 0x17, name: 'T' },
+            { code: 0x18, name: 'U' }, { code: 0x19, name: 'V' },
+            { code: 0x1A, name: 'W' }, { code: 0x1B, name: 'X' },
+            { code: 0x1C, name: 'Y' }, { code: 0x1D, name: 'Z' },
+            { code: 0x1E, name: '1' }, { code: 0x1F, name: '2' },
+            { code: 0x20, name: '3' }, { code: 0x21, name: '4' },
+            { code: 0x22, name: '5' }, { code: 0x23, name: '6' },
+            { code: 0x24, name: '7' }, { code: 0x25, name: '8' },
+            { code: 0x26, name: '9' }, { code: 0x27, name: '0' },
+            { code: 0x28, name: 'Enter' }, { code: 0x29, name: 'Escape' },
+            { code: 0x2A, name: 'Backspace' }, { code: 0x2B, name: 'Tab' },
+            { code: 0x2C, name: 'Space' },
+            { code: 0x4F, name: '→' }, { code: 0x50, name: '←' },
+            { code: 0x51, name: '↓' }, { code: 0x52, name: '↑' },
+        ];
+
+        // Returns short display name for a keycode (for SVG labels)
+        function keycodeToLabel(code) {
+            const entry = HID_KEYCODES.find(k => k.code === code);
+            if (!entry) return '0x' + code.toString(16).toUpperCase();
+            // Shorten for SVG display
+            let n = entry.name;
+            if (n.startsWith('KP ')) n = n.slice(3); // "KP 7" → "7"
+            if (n === 'Num Lock') n = 'Num';
+            if (n === 'Backspace') n = 'BS';
+            if (n === 'Escape') n = 'Esc';
+            if (n === 'Enter' && code === 0x58) n = 'Enter'; // KP Enter
+            return n;
+        }
+
         let device = null;
-        let keyCount = KEY_NAMES.length;
-        let originalValues = new Array(keyCount).fill(50);
-        let currentValues = new Array(keyCount).fill(50);
+        const keyCount = KEY_NAMES.length;
+        let sensValues = new Array(keyCount).fill(50);
+        let sensOrig = new Array(keyCount).fill(50);
+        let dzValues = new Array(keyCount).fill(30);
+        let dzOrig = new Array(keyCount).fill(30);
+        let kcValues = DEFAULT_KEYCODES.slice();
+        let kcOrig = DEFAULT_KEYCODES.slice();
+        let selectedKey = -1;
+        let ledMode = 0, ledBrightness = 255, ledSpeedVal = 50; // 0-100 (x10)
 
-        // ===== UI Setup =====
-        function buildKeyGrid() {
-            const grid = document.getElementById('keyGrid');
-            grid.innerHTML = '';
-            for (let i = 0; i < keyCount; i++) {
-                const card = document.createElement('div');
-                card.className = 'key-card';
-                card.id = `key-${i}`;
-                card.innerHTML = `
-                <div class="key-name">${KEY_NAMES[i] || 'Key ' + i}<span class="key-idx">#${i}</span></div>
-                <div class="slider-wrap">
-                    <input type="range" min="1" max="1000" value="${currentValues[i]}"
-                           id="slider-${i}" oninput="onSliderChange(${i}, this.value)">
-                </div>
-                <input type="number" min="1" max="1000" value="${currentValues[i]}"
-                       id="num-${i}" onchange="onNumberChange(${i}, this.value)"
-                       onkeydown="if(event.key==='Enter'){this.blur();}">
-            `;
-                grid.appendChild(card);
+        // ===== Tabs =====
+        function switchTab(n) {
+            document.querySelectorAll('.tab').forEach((t, i) => t.classList.toggle('active', i === n));
+            document.querySelectorAll('.tab-panel').forEach((p, i) => p.classList.toggle('active', i === n));
+            if (n === 1) startLedPreview(); else stopLedPreview();
+        }
+
+        // ===== SVG label update =====
+        function updateAllSvgLabels() {
+            for (let i = 0; i < keyCount; i++) updateSvgLabel(i);
+        }
+        function updateSvgLabel(idx) {
+            const txt = document.querySelector(`text.key-label[data-key="${idx}"]`);
+            if (txt) txt.textContent = keycodeToLabel(kcValues[idx]);
+        }
+
+        // ===== Key Select =====
+        function selectKey(idx) {
+            selectedKey = idx;
+            document.querySelectorAll('.key-rect').forEach(r => r.classList.remove('selected'));
+            const rect = document.querySelector(`.key-rect[data-key="${idx}"]`);
+            if (rect) rect.classList.add('selected');
+
+            document.getElementById('detailEmpty').style.display = 'none';
+            document.getElementById('detailContent').style.display = 'block';
+            document.getElementById('detailTitle').textContent = `${KEY_NAMES[idx]} (#${idx})`;
+
+            document.getElementById('pSens').value = sensValues[idx];
+            document.getElementById('pSensNum').value = sensValues[idx];
+            document.getElementById('pDZ').value = dzValues[idx];
+            document.getElementById('pDZNum').value = dzValues[idx];
+
+            // Populate keymap dropdown
+            const sel = document.getElementById('pKeymap');
+            sel.innerHTML = '';
+            for (const k of HID_KEYCODES) {
+                const opt = document.createElement('option');
+                opt.value = k.code;
+                opt.textContent = `${k.name} (0x${k.code.toString(16).toUpperCase().padStart(2, '0')})`;
+                if (k.code === kcValues[idx]) opt.selected = true;
+                sel.appendChild(opt);
+            }
+            if (!HID_KEYCODES.find(k => k.code === kcValues[idx])) {
+                const opt = document.createElement('option');
+                opt.value = kcValues[idx];
+                opt.textContent = `Custom (0x${kcValues[idx].toString(16).toUpperCase().padStart(2, '0')})`;
+                opt.selected = true;
+                sel.prepend(opt);
             }
         }
 
-        function onSliderChange(idx, val) {
-            val = parseInt(val);
-            if (isNaN(val)) return;
-            val = Math.max(1, Math.min(1000, val));
-            currentValues[idx] = val;
-            document.getElementById(`num-${idx}`).value = val;
-            updateModified(idx);
-        }
-
-        function onNumberChange(idx, val) {
-            val = parseInt(val);
-            if (isNaN(val)) {
-                // Revert to current value
-                document.getElementById(`num-${idx}`).value = currentValues[idx];
-                return;
+        function onDetailSlider(type) {
+            if (selectedKey < 0) return;
+            if (type === 'sens') {
+                const v = parseInt(document.getElementById('pSens').value);
+                sensValues[selectedKey] = v;
+                document.getElementById('pSensNum').value = v;
+            } else if (type === 'dz') {
+                const v = parseInt(document.getElementById('pDZ').value);
+                dzValues[selectedKey] = v;
+                document.getElementById('pDZNum').value = v;
             }
-            val = Math.max(1, Math.min(1000, val));
-            currentValues[idx] = val;
-            document.getElementById(`slider-${idx}`).value = val;
-            document.getElementById(`num-${idx}`).value = val;
-            updateModified(idx);
+            updateKeyModified(selectedKey);
         }
 
-        function updateModified(idx) {
-            const card = document.getElementById(`key-${idx}`);
-            if (currentValues[idx] !== originalValues[idx]) {
-                card.classList.add('modified');
-            } else {
-                card.classList.remove('modified');
+        function onDetailNum(type) {
+            if (selectedKey < 0) return;
+            if (type === 'sens') {
+                let v = parseInt(document.getElementById('pSensNum').value);
+                if (isNaN(v)) { document.getElementById('pSensNum').value = sensValues[selectedKey]; return; }
+                v = Math.max(1, Math.min(1000, v));
+                sensValues[selectedKey] = v;
+                document.getElementById('pSens').value = v;
+                document.getElementById('pSensNum').value = v;
+            } else if (type === 'dz') {
+                let v = parseInt(document.getElementById('pDZNum').value);
+                if (isNaN(v)) { document.getElementById('pDZNum').value = dzValues[selectedKey]; return; }
+                v = Math.max(0, Math.min(500, v));
+                dzValues[selectedKey] = v;
+                document.getElementById('pDZ').value = v;
+                document.getElementById('pDZNum').value = v;
             }
+            updateKeyModified(selectedKey);
         }
 
+        function onKeymapChange() {
+            if (selectedKey < 0) return;
+            kcValues[selectedKey] = parseInt(document.getElementById('pKeymap').value);
+            updateSvgLabel(selectedKey);        // ← SVGラベルを即時更新
+            updateKeyModified(selectedKey);
+        }
+
+        function updateKeyModified(idx) {
+            const rect = document.querySelector(`.key-rect[data-key="${idx}"]`);
+            if (!rect) return;
+            const mod = sensValues[idx] !== sensOrig[idx] ||
+                dzValues[idx] !== dzOrig[idx] ||
+                kcValues[idx] !== kcOrig[idx];
+            rect.classList.toggle('modified', mod);
+        }
+
+        function applyBulk(type) {
+            if (type === 'sens') {
+                const v = parseInt(document.getElementById('bulkSensVal').value);
+                if (isNaN(v) || v < 1 || v > 1000) return;
+                for (let i = 0; i < keyCount; i++) sensValues[i] = v;
+                log(`全キー感度を ${v} に設定`, 'info');
+            } else if (type === 'dz') {
+                const v = parseInt(document.getElementById('bulkDZVal').value);
+                if (isNaN(v) || v < 0 || v > 500) return;
+                for (let i = 0; i < keyCount; i++) dzValues[i] = v;
+                log(`全キーデッドゾーンを ${v} に設定`, 'info');
+            }
+            for (let i = 0; i < keyCount; i++) updateKeyModified(i);
+            if (selectedKey >= 0) selectKey(selectedKey);
+        }
+
+        // ===== LED Preview (firmware-accurate timing) =====
+        // Firmware: TIM6 ≈ 2593Hz, accumulator: threshold=(110-speed), step=3
+        // effective tick period = (threshold/3) * TIM6_PERIOD_MS
+        // Fade: 255 ticks, Blink: 256 ticks (128 per phase), Breathing: 512 ticks
+        function calcCycleMs(mode, speed) {
+            const threshold = 110 - speed;
+            const tickMs = (threshold / 3) * TIM6_PERIOD_MS;
+            switch (mode) {
+                case 0: return 255 * tickMs;       // Fade
+                case 1: return 256 * tickMs;       // Blink (full on+off)
+                case 2: return 512 * tickMs;       // Breathing
+                case 3: return 0;                  // Solid (no cycle)
+                case 4: return 0;                  // Off
+            }
+            return 0;
+        }
+
+        function selectLedMode(m) {
+            ledMode = m;
+            document.querySelectorAll('.led-card').forEach(c => c.classList.toggle('active', parseInt(c.dataset.mode) === m));
+            updateLedParams();
+        }
+
+        function updateLedParams() {
+            ledBrightness = parseInt(document.getElementById('ledBright').value);
+            ledSpeedVal = parseInt(document.getElementById('ledSpeed').value);
+            document.getElementById('ledBrightVal').textContent = ledBrightness;
+            document.getElementById('ledSpeedVal').textContent = (ledSpeedVal / 10).toFixed(1);
+            const cycleMs = calcCycleMs(ledMode, ledSpeedVal);
+            document.getElementById('ledTimingInfo').textContent =
+                cycleMs > 0 ? `1周期: ${Math.round(cycleMs)}ms` : '';
+        }
+
+        let ledAnimFrame = null;
+        let ledAnimStart = null;
+        function startLedPreview() {
+            stopLedPreview();
+            ledAnimStart = null;
+            function animate(ts) {
+                if (!ledAnimStart) ledAnimStart = ts;
+                const elapsed = ts - ledAnimStart;
+                // Accumulator model: threshold = 110 - speed, effective tick period = threshold/10 * TIM6_PERIOD_MS
+                const threshold = 110 - ledSpeedVal;
+                const effectiveTickMs = (threshold / 3) * TIM6_PERIOD_MS;
+                const tick = Math.floor(elapsed / effectiveTickMs);
+                const b = ledBrightness;
+                let level = 0;
+
+                switch (ledMode) {
+                    case 0: { // Fade: ramps down over 255 ticks then resets
+                        const cycleTicks = 255;
+                        const restTicks = 100; // pause before re-trigger
+                        const totalCycle = cycleTicks + restTicks;
+                        const pos = tick % totalCycle;
+                        if (pos < cycleTicks) level = b - Math.floor(pos * b / 255);
+                        else level = 0;
+                        break;
+                    }
+                    case 1: { // Blink: toggle every 128 ticks
+                        const phase = Math.floor(tick / 128) % 2;
+                        level = phase === 0 ? b : 0;
+                        break;
+                    }
+                    case 2: { // Breathing: triangle over 512 ticks
+                        const phase = tick % 512;
+                        let raw;
+                        if (phase < 256) raw = phase;       // 0→255
+                        else raw = 511 - phase;              // 255→0
+                        level = Math.round(raw * b / 255);
+                        break;
+                    }
+                    case 3: // Solid
+                        level = b;
+                        break;
+                    case 4: // Off
+                        level = 0;
+                        break;
+                }
+                // Gamma 2.0 simulation for visual appearance
+                const gamma = (level / 255) ** 2;
+                const pct = gamma;
+                const r = Math.round(108 * pct), g = Math.round(92 * pct), bl = Math.round(231 * pct);
+                const preview = document.getElementById('ledPreview');
+                preview.style.background = `radial-gradient(ellipse at center, rgba(${r},${g},${bl},${Math.min(1, pct * 1.5)}) 0%, rgba(${r},${g},${bl},${pct * 0.3}) 70%, transparent 100%)`;
+                ledAnimFrame = requestAnimationFrame(animate);
+            }
+            ledAnimFrame = requestAnimationFrame(animate);
+        }
+        function stopLedPreview() {
+            if (ledAnimFrame) { cancelAnimationFrame(ledAnimFrame); ledAnimFrame = null; ledAnimStart = null; }
+        }
+
+        // ===== Connection =====
         function updateUI(connected) {
-            const dot = document.getElementById('statusDot');
-            const text = document.getElementById('statusText');
-            const btn = document.getElementById('btnConnect');
-
-            dot.classList.toggle('connected', connected);
-            text.classList.toggle('connected', connected);
-            text.textContent = connected ? '接続済み' : '未接続';
-            btn.textContent = connected ? '切断' : '接続';
-
-            document.getElementById('btnRead').disabled = !connected;
-            document.getElementById('btnWrite').disabled = !connected;
-            document.getElementById('btnSave').disabled = !connected;
-            document.getElementById('btnReset').disabled = !connected;
+            document.getElementById('dot').classList.toggle('on', connected);
+            const ct = document.getElementById('connText');
+            ct.classList.toggle('on', connected);
+            ct.textContent = connected ? '接続済み' : '未接続';
+            document.getElementById('btnConn').textContent = connected ? '切断' : '接続';
+            document.getElementById('devInfo').textContent = connected ? `(${keyCount}キー)` : '';
+            ['btnRead', 'btnWrite', 'btnSave', 'btnReset'].forEach(id =>
+                document.getElementById(id).disabled = !connected);
         }
 
         function log(msg, type = '') {
             const area = document.getElementById('logArea');
-            const entry = document.createElement('div');
-            entry.className = `log-entry ${type}`;
-            const time = new Date().toLocaleTimeString();
-            entry.textContent = `[${time}] ${msg}`;
-            area.appendChild(entry);
-            area.scrollTop = area.scrollHeight;
+            const e = document.createElement('div');
+            e.className = `log-entry ${type}`;
+            e.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+            area.appendChild(e); area.scrollTop = area.scrollHeight;
         }
 
-        // ===== Reset Confirm UI =====
-        function showResetConfirm() {
-            log('初期化ボタンが押されました', 'info');
-            document.getElementById('confirmBar').classList.add('show');
-        }
-        function hideResetConfirm() {
-            document.getElementById('confirmBar').classList.remove('show');
-        }
-
-        // ===== WebHID =====
-        async function toggleConnect() {
-            if (device) {
-                await disconnect();
-            } else {
-                await connect();
-            }
-        }
+        async function toggleConnect() { device ? await disconnect() : await connect(); }
 
         async function connect() {
             try {
-                const devices = await navigator.hid.requestDevice({
-                    filters: [{ vendorId: VID, productId: PID }]
-                });
-                if (devices.length === 0) {
-                    log('デバイスが選択されませんでした', 'error');
-                    return;
-                }
-                device = devices[0];
-                await device.open();
+                const devs = await navigator.hid.requestDevice({ filters: [{ vendorId: VID, productId: PID }] });
+                if (!devs.length) { log('デバイス未選択', 'error'); return; }
+                device = devs[0]; await device.open();
                 log(`接続: ${device.productName || 'HID Device'}`, 'success');
                 updateUI(true);
-
-                // 接続時に自動読み込み
-                await readAllSensitivity();
-            } catch (e) {
-                log(`接続エラー: ${e.message}`, 'error');
-                device = null;
-            }
+                await readAll();
+            } catch (e) { log(`接続エラー: ${e.message}`, 'error'); device = null; }
         }
 
         async function disconnect() {
-            if (device) {
-                await device.close();
-                log('切断しました', 'info');
-                device = null;
-                updateUI(false);
-            }
+            if (device) { await device.close(); device = null; updateUI(false); log('切断', 'info'); }
         }
 
-        async function sendFeatureReport(data) {
-            if (!device || !device.opened) throw new Error('デバイス未接続');
+        async function sendFR(data) {
+            if (!device?.opened) throw new Error('未接続');
             const buf = new Uint8Array(32);
             for (let i = 0; i < Math.min(data.length, 32); i++) buf[i] = data[i];
             await device.sendFeatureReport(0, buf);
         }
-
-        async function receiveFeatureReport() {
-            if (!device || !device.opened) throw new Error('デバイス未接続');
+        async function recvFR() {
+            if (!device?.opened) throw new Error('未接続');
             await new Promise(r => setTimeout(r, 50));
             const result = await device.receiveFeatureReport(0);
             return new Uint8Array(result.buffer);
         }
 
         // ===== Commands =====
-        async function readAllSensitivity() {
+        async function readAll() {
             try {
-                log('感度を読み込み中...', 'info');
-                await sendFeatureReport([CMD.GET_SENSITIVITY, 0xFF]);
-                const resp = await receiveFeatureReport();
+                log('全設定を読み込み中...', 'info');
 
-                if (resp[1] !== RESP.OK) {
-                    log(`読み込みエラー (status: ${resp[1]})`, 'error');
-                    return;
-                }
-
-                for (let i = 0; i < keyCount && i < 15; i++) {
-                    const val = resp[2 + i * 2] | (resp[2 + i * 2 + 1] << 8);
-                    if (val >= 1 && val <= 4095) {
-                        currentValues[i] = val;
-                        originalValues[i] = val;
+                // Sensitivity
+                await sendFR([CMD.GET_SENSITIVITY, 0xFF]); let resp = await recvFR();
+                if (resp[1] === RESP.OK) {
+                    for (let i = 0; i < keyCount && i < 15; i++) {
+                        const v = resp[2 + i * 2] | (resp[3 + i * 2] << 8);
+                        if (v >= 1 && v <= 4095) { sensValues[i] = v; sensOrig[i] = v; }
                     }
                 }
-
-                // Handle keys 15-16 with individual reads
                 for (let i = 15; i < keyCount; i++) {
-                    await sendFeatureReport([CMD.GET_SENSITIVITY, i]);
-                    const r = await receiveFeatureReport();
-                    if (r[1] === RESP.OK) {
-                        const val = r[2] | (r[3] << 8);
-                        if (val >= 1 && val <= 4095) {
-                            currentValues[i] = val;
-                            originalValues[i] = val;
-                        }
+                    await sendFR([CMD.GET_SENSITIVITY, i]); const r = await recvFR();
+                    if (r[1] === RESP.OK) { const v = r[2] | (r[3] << 8); if (v >= 1 && v <= 4095) { sensValues[i] = v; sensOrig[i] = v; } }
+                }
+
+                // Dead Zone
+                await sendFR([CMD.GET_DEADZONE, 0xFF]); resp = await recvFR();
+                if (resp[1] === RESP.OK) {
+                    for (let i = 0; i < keyCount && i < 15; i++) {
+                        const v = resp[2 + i * 2] | (resp[3 + i * 2] << 8);
+                        if (v <= 500) { dzValues[i] = v; dzOrig[i] = v; }
+                    }
+                }
+                for (let i = 15; i < keyCount; i++) {
+                    await sendFR([CMD.GET_DEADZONE, i]); const r = await recvFR();
+                    if (r[1] === RESP.OK) { const v = r[2] | (r[3] << 8); if (v <= 500) { dzValues[i] = v; dzOrig[i] = v; } }
+                }
+
+                // Keycodes
+                await sendFR([CMD.GET_KEYCODE, 0xFF]); resp = await recvFR();
+                if (resp[1] === RESP.OK) {
+                    for (let i = 0; i < keyCount && i < 30; i++) {
+                        const c = resp[2 + i]; if (c > 0 && c < 120) { kcValues[i] = c; kcOrig[i] = c; }
                     }
                 }
 
-                buildKeyGrid();
+                // LED
+                await sendFR([CMD.GET_LED_MODE]); resp = await recvFR();
+                if (resp[1] === RESP.OK) {
+                    ledMode = resp[2]; ledBrightness = resp[3]; ledSpeedVal = resp[4];
+                    if (ledSpeedVal === undefined || ledSpeedVal > 100) ledSpeedVal = 50;
+                    // スライダーを先にセット → selectLedMode内のupdateLedParamsが正しい値を読む
+                    document.getElementById('ledBright').value = ledBrightness;
+                    document.getElementById('ledSpeed').value = ledSpeedVal;
+                    selectLedMode(ledMode);
+                }
+
+                updateAllSvgLabels();
+                for (let i = 0; i < keyCount; i++) updateKeyModified(i);
+                if (selectedKey >= 0) selectKey(selectedKey);
                 log(`読み込み完了 (${keyCount}キー)`, 'success');
-            } catch (e) {
-                log(`読み込みエラー: ${e.message}`, 'error');
-            }
+            } catch (e) { log(`読み込みエラー: ${e.message}`, 'error'); }
         }
 
-        async function writeAllSensitivity() {
+        async function writeAll() {
             try {
                 let count = 0;
                 for (let i = 0; i < keyCount; i++) {
-                    if (currentValues[i] !== originalValues[i]) {
-                        const val = currentValues[i];
-                        await sendFeatureReport([
-                            CMD.SET_SENSITIVITY, i,
-                            val & 0xFF, (val >> 8) & 0xFF
-                        ]);
-                        const resp = await receiveFeatureReport();
-                        if (resp[1] !== RESP.OK) {
-                            log(`Key ${i} 書き込みエラー (status: ${resp[1]})`, 'error');
-                            continue;
-                        }
-                        originalValues[i] = val;
-                        const card = document.getElementById(`key-${i}`);
-                        if (card) card.classList.remove('modified');
-                        count++;
+                    if (sensValues[i] !== sensOrig[i]) {
+                        const v = sensValues[i];
+                        await sendFR([CMD.SET_SENSITIVITY, i, v & 0xFF, (v >> 8) & 0xFF]);
+                        const r = await recvFR();
+                        if (r[1] === RESP.OK) { sensOrig[i] = v; count++; }
+                        else log(`Key ${i} 感度書込エラー`, 'error');
                     }
+                    if (dzValues[i] !== dzOrig[i]) {
+                        const v = dzValues[i];
+                        await sendFR([CMD.SET_DEADZONE, i, v & 0xFF, (v >> 8) & 0xFF]);
+                        const r = await recvFR();
+                        if (r[1] === RESP.OK) { dzOrig[i] = v; count++; }
+                        else log(`Key ${i} DZ書込エラー`, 'error');
+                    }
+                    if (kcValues[i] !== kcOrig[i]) {
+                        await sendFR([CMD.SET_KEYCODE, i, kcValues[i]]);
+                        const r = await recvFR();
+                        if (r[1] === RESP.OK) { kcOrig[i] = kcValues[i]; count++; }
+                        else log(`Key ${i} キーコード書込エラー`, 'error');
+                    }
+                    updateKeyModified(i);
                 }
-                if (count === 0) {
-                    log('変更なし（RAMへの書き込みは不要です）', 'info');
-                } else {
-                    log(`${count}キーの感度をRAMに書き込みました`, 'success');
-                }
-            } catch (e) {
-                log(`書き込みエラー: ${e.message}`, 'error');
-            }
+                if (count === 0) log('変更なし', 'info');
+                else log(`${count}件をRAMに書込`, 'success');
+            } catch (e) { log(`書き込みエラー: ${e.message}`, 'error'); }
+        }
+
+        async function writeLedSettings() {
+            try {
+                await sendFR([CMD.SET_LED_MODE, ledMode, ledBrightness, ledSpeedVal]);
+                const r = await recvFR();
+                if (r[1] === RESP.OK) log(`LED設定送信 (Mode:${ledMode})`, 'success');
+                else log(`LED設定エラー (status:${r[1]})`, 'error');
+            } catch (e) { log(`LED設定エラー: ${e.message}`, 'error'); }
+        }
+
+        async function applyAll() {
+            await writeAll();
+            await writeLedSettings();
+            log('全設定をデバイスに適用しました', 'success');
         }
 
         async function saveToFlash() {
             try {
-                await writeAllSensitivity();
-
-                log('Flashに保存中...', 'info');
-                await sendFeatureReport([CMD.SAVE_TO_FLASH]);
-                const resp = await receiveFeatureReport();
-
-                if (resp[1] === RESP.OK) {
-                    log('Flashに保存しました ✓', 'success');
-                } else {
-                    log(`Flash保存エラー (status: ${resp[1]}, flash_status: ${resp[2]})`, 'error');
-                }
-            } catch (e) {
-                log(`Flash保存エラー: ${e.message}`, 'error');
-            }
+                await applyAll();
+                log('保存中...', 'info');
+                await sendFR([CMD.SAVE_TO_FLASH]);
+                const r = await recvFR();
+                if (r[1] === RESP.OK) log('Flashに保存しました ✓', 'success');
+                else log(`Flash保存エラー (status:${r[1]}, code:${r[2]})`, 'error');
+            } catch (e) { log(`Flash保存エラー: ${e.message}`, 'error'); }
         }
 
-        async function doResetDefaults() {
+        function showResetConfirm() { document.getElementById('confirmBar').classList.add('show'); }
+        function hideResetConfirm() { document.getElementById('confirmBar').classList.remove('show'); }
+
+        async function doReset() {
             hideResetConfirm();
             try {
-                log('初期化中...', 'info');
-                await sendFeatureReport([CMD.RESET_DEFAULTS]);
-                const resp = await receiveFeatureReport();
-
-                if (resp[1] === RESP.OK) {
-                    log('全キーを初期値にリセットしました', 'success');
-                    await readAllSensitivity();
-                } else {
-                    log(`リセットエラー (status: ${resp[1]})`, 'error');
-                }
-            } catch (e) {
-                log(`リセットエラー: ${e.message}`, 'error');
-            }
+                await sendFR([CMD.RESET_DEFAULTS]);
+                const r = await recvFR();
+                if (r[1] === RESP.OK) { log('初期値にリセット (キーマップ含む)', 'success'); await readAll(); }
+                else log(`リセットエラー (status:${r[1]})`, 'error');
+            } catch (e) { log(`リセットエラー: ${e.message}`, 'error'); }
         }
 
         // ===== Init =====
-        buildKeyGrid();
+        document.querySelectorAll('.key-rect').forEach(rect => {
+            rect.addEventListener('click', () => selectKey(parseInt(rect.dataset.key)));
+        });
+        updateAllSvgLabels(); // Set initial labels from default keycodes
 
-        // Handle device disconnect
         if (navigator.hid) {
-            navigator.hid.addEventListener('disconnect', (e) => {
-                if (device && e.device === device) {
-                    device = null;
-                    updateUI(false);
-                    log('デバイスが切断されました', 'error');
-                }
+            navigator.hid.addEventListener('disconnect', e => {
+                if (device && e.device === device) { device = null; updateUI(false); log('切断されました', 'error'); }
             });
         }
     </script>
