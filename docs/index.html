@@ -570,6 +570,95 @@
                 grid-template-columns: repeat(2, 1fr);
             }
         }
+
+        /* ===== Tab 2: Macro ===== */
+        .macro-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .macro-row {
+            display: grid;
+            grid-template-columns: 120px 1fr auto;
+            align-items: start;
+            gap: 10px;
+            padding: 8px 12px;
+            background: var(--surface);
+            border-radius: 8px;
+            border: 1px solid var(--border);
+        }
+
+        .macro-row.has-macro {
+            border-color: var(--accent);
+            background: rgba(99, 102, 241, 0.05);
+        }
+
+        .macro-key-name {
+            font-weight: 600;
+            font-size: 0.85rem;
+        }
+
+        .macro-config {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .mod-group {
+            display: flex;
+            gap: 4px;
+        }
+
+        .mod-btn {
+            padding: 4px 8px;
+            border-radius: 4px;
+            border: 1px solid var(--border);
+            background: var(--surface);
+            color: var(--text-muted);
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: all 0.15s;
+            font-family: inherit;
+        }
+
+        .mod-btn.active {
+            background: var(--accent);
+            color: white;
+            border-color: var(--accent);
+        }
+
+        .mod-btn:hover {
+            border-color: var(--accent-light);
+        }
+
+        .macro-key-select {
+            padding: 4px 8px;
+            border-radius: 4px;
+            border: 1px solid var(--border);
+            background: var(--bg);
+            color: var(--text);
+            font-size: 0.8rem;
+            font-family: inherit;
+        }
+
+        .macro-clear-btn {
+            padding: 4px 10px;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            background: transparent;
+            color: var(--text-muted);
+            cursor: pointer;
+            font-size: 0.75rem;
+            font-family: inherit;
+            transition: all 0.15s;
+        }
+
+        .macro-clear-btn:hover {
+            border-color: var(--danger);
+            color: var(--danger);
+        }
     </style>
 </head>
 
@@ -603,10 +692,11 @@
             <button class="btn btn-outline btn-sm" onclick="hideResetConfirm()">キャンセル</button>
         </div>
 
-        <!-- Tabs (2 tabs only) -->
+        <!-- Tabs -->
         <div class="tabs">
             <button class="tab active" onclick="switchTab(0)">⌨ キー設定</button>
             <button class="tab" onclick="switchTab(1)">💡 LED</button>
+            <button class="tab" onclick="switchTab(2)">⚡ マクロ</button>
         </div>
 
         <!-- Tab 0: Key Config -->
@@ -755,6 +845,14 @@
 
         </div>
 
+        <!-- Tab 2: Macro -->
+        <div class="tab-panel" id="panel-2">
+            <div style="margin-bottom:16px;color:var(--text-muted);font-size:0.85rem;">
+                各キーにマクロ（修飾キー+キーの同時押し）を割り当てられます。例: Ctrl+C, Ctrl+V, Alt+F4など
+            </div>
+            <div class="macro-grid" id="macroGrid"></div>
+        </div>
+
         <div class="log-area" id="logArea"></div>
     </div>
 
@@ -768,6 +866,7 @@
             SAVE_TO_FLASH: 0x10, RESET_DEFAULTS: 0x11,
             GET_KEY_COUNT: 0x20,
             SET_LED_MODE: 0x30, GET_LED_MODE: 0x31,
+            SET_MACRO: 0x40, GET_MACRO: 0x41,
         };
         const RESP = { OK: 0x00, ERROR: 0x01, INVALID: 0x02 };
 
@@ -846,12 +945,34 @@
         let kcOrig = DEFAULT_KEYCODES.slice();
         let selectedKey = -1;
         let ledMode = 0, ledBrightness = 255, ledSpeedVal = 50; // 0-100 (x10)
+        // マクロ: 各キーにステップ配列 [{mod, key}, ...]
+        const MAX_MACRO_STEPS = 8;
+        let macroData = Array.from({ length: keyCount }, () => []);  // [[{mod,key},...],...]
+        let macroDataOrig = Array.from({ length: keyCount }, () => []);
+
+        const MODIFIERS = [
+            { bit: 0x01, label: 'Ctrl' },
+            { bit: 0x02, label: 'Shift' },
+            { bit: 0x04, label: 'Alt' },
+            { bit: 0x08, label: 'Win' },
+        ];
+
+        // マクロ用キー一覧 (ドロップダウン用、「なし」含む)
+        const MACRO_KEYS = [
+            { code: 0, name: 'なし' },
+            ...HID_KEYCODES
+        ];
+
+        // マクロタブ表示順: テンキーの自然な配列順
+        // 内部idx: 0=KP0, 1=KP., 2=Enter, 3=3, 4=2, 5=1, 6=6, 7=5, 8=4, 9=+, 10=9, 11=8, 12=7, 13=-, 14=*, 15=/, 16=NumLock
+        const DISPLAY_ORDER = [16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 0, 1];
 
         // ===== Tabs =====
         function switchTab(n) {
             document.querySelectorAll('.tab').forEach((t, i) => t.classList.toggle('active', i === n));
             document.querySelectorAll('.tab-panel').forEach((p, i) => p.classList.toggle('active', i === n));
             if (n === 1) startLedPreview(); else stopLedPreview();
+            if (n === 2) buildMacroGrid();
         }
 
         // ===== SVG label update =====
@@ -962,6 +1083,92 @@
             }
             for (let i = 0; i < keyCount; i++) updateKeyModified(i);
             if (selectedKey >= 0) selectKey(selectedKey);
+        }
+
+        // ===== Macro Grid (Sequence Editor) =====
+        function buildMacroGrid() {
+            const grid = document.getElementById('macroGrid');
+            grid.innerHTML = '';
+            for (const i of DISPLAY_ORDER) {
+                const row = document.createElement('div');
+                row.className = 'macro-row' + (macroData[i].length > 0 ? ' has-macro' : '');
+                row.id = `macroRow${i}`;
+
+                // Key name
+                const nameEl = document.createElement('div');
+                nameEl.className = 'macro-key-name';
+                nameEl.textContent = KEY_NAMES[i];
+                row.appendChild(nameEl);
+
+                // Steps area
+                const stepsArea = document.createElement('div');
+                stepsArea.style.cssText = 'display:flex;flex-direction:column;gap:4px;flex:1';
+                macroData[i].forEach((step, si) => {
+                    stepsArea.appendChild(buildStepEl(i, si, step));
+                });
+                if (macroData[i].length < MAX_MACRO_STEPS) {
+                    const addBtn = document.createElement('button');
+                    addBtn.className = 'macro-clear-btn';
+                    addBtn.style.cssText = 'align-self:flex-start;color:var(--accent);border-color:var(--accent)';
+                    addBtn.textContent = '+ ステップ追加';
+                    addBtn.onclick = () => { macroData[i].push({ mod: 0, key: 0 }); buildMacroGrid(); };
+                    stepsArea.appendChild(addBtn);
+                }
+                row.appendChild(stepsArea);
+
+                if (macroData[i].length > 0) {
+                    const clearBtn = document.createElement('button');
+                    clearBtn.className = 'macro-clear-btn';
+                    clearBtn.textContent = '✕ 全削除';
+                    clearBtn.onclick = () => { macroData[i] = []; buildMacroGrid(); };
+                    row.appendChild(clearBtn);
+                }
+                grid.appendChild(row);
+            }
+        }
+
+        function buildStepEl(keyIdx, stepIdx, step) {
+            const el = document.createElement('div');
+            el.style.cssText = 'display:flex;align-items:center;gap:6px;padding:2px 0';
+
+            const num = document.createElement('span');
+            num.style.cssText = 'color:var(--text-muted);font-size:0.75rem;min-width:16px';
+            num.textContent = (stepIdx + 1) + '.';
+            el.appendChild(num);
+
+            for (const mod of MODIFIERS) {
+                const btn = document.createElement('button');
+                btn.className = 'mod-btn' + ((step.mod & mod.bit) ? ' active' : '');
+                btn.textContent = mod.label;
+                btn.onclick = () => { step.mod ^= mod.bit; btn.classList.toggle('active'); };
+                el.appendChild(btn);
+            }
+
+            const plus = document.createElement('span');
+            plus.textContent = '+';
+            plus.style.cssText = 'color:var(--text-muted);font-size:0.8rem';
+            el.appendChild(plus);
+
+            const sel = document.createElement('select');
+            sel.className = 'macro-key-select';
+            for (const k of MACRO_KEYS) {
+                const opt = document.createElement('option');
+                opt.value = k.code;
+                opt.textContent = k.name + (k.code ? ' (0x' + k.code.toString(16).toUpperCase() + ')' : '');
+                if (k.code === step.key) opt.selected = true;
+                sel.appendChild(opt);
+            }
+            sel.onchange = () => { step.key = parseInt(sel.value); };
+            el.appendChild(sel);
+
+            const delBtn = document.createElement('button');
+            delBtn.className = 'macro-clear-btn';
+            delBtn.textContent = '✕';
+            delBtn.title = 'このステップを削除';
+            delBtn.onclick = () => { macroData[keyIdx].splice(stepIdx, 1); buildMacroGrid(); };
+            el.appendChild(delBtn);
+
+            return el;
         }
 
         // ===== LED Preview (firmware-accurate timing) =====
@@ -1156,6 +1363,19 @@
                     selectLedMode(ledMode);
                 }
 
+                // Macros (per-key query)
+                for (let i = 0; i < keyCount; i++) {
+                    await sendFR([CMD.GET_MACRO, i]); resp = await recvFR();
+                    if (resp[1] === RESP.OK) {
+                        const sc = resp[2];
+                        macroData[i] = [];
+                        for (let s = 0; s < sc && (3 + s * 2 + 1) < 32; s++) {
+                            macroData[i].push({ mod: resp[3 + s * 2], key: resp[4 + s * 2] });
+                        }
+                        macroDataOrig[i] = macroData[i].map(s => ({ ...s }));
+                    }
+                }
+
                 updateAllSvgLabels();
                 for (let i = 0; i < keyCount; i++) updateKeyModified(i);
                 if (selectedKey >= 0) selectKey(selectedKey);
@@ -1188,6 +1408,21 @@
                         else log(`Key ${i} キーコード書込エラー`, 'error');
                     }
                     updateKeyModified(i);
+                }
+                // Macros
+                for (let i = 0; i < keyCount; i++) {
+                    const cur = macroData[i];
+                    const orig = macroDataOrig[i];
+                    const changed = cur.length !== orig.length ||
+                        cur.some((s, j) => s.mod !== orig[j]?.mod || s.key !== orig[j]?.key);
+                    if (changed) {
+                        const payload = [CMD.SET_MACRO, i, cur.length];
+                        for (const s of cur) { payload.push(s.mod, s.key); }
+                        await sendFR(payload);
+                        const r = await recvFR();
+                        if (r[1] === RESP.OK) { macroDataOrig[i] = cur.map(s => ({ ...s })); count++; }
+                        else log(`Key ${i} マクロ書込エラー`, 'error');
+                    }
                 }
                 if (count === 0) log('変更なし', 'info');
                 else log(`${count}件をRAMに書込`, 'success');

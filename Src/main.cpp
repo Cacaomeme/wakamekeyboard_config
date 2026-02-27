@@ -40,6 +40,8 @@ volatile uint8_t last_payload[4] = {0};
 #define CMD_GET_KEY_COUNT    0x20
 #define CMD_SET_LED_MODE     0x30
 #define CMD_GET_LED_MODE     0x31
+#define CMD_SET_MACRO        0x40
+#define CMD_GET_MACRO        0x41
 
 // 応答ステータス
 #define RESP_OK              0x00
@@ -193,6 +195,40 @@ extern "C" void ProcessFeatureReport(uint8_t* data, uint16_t len, uint8_t* respo
         response[2] = (uint8_t)keyboard.ledConfig.mode;
         response[3] = keyboard.ledConfig.brightness;
         response[4] = keyboard.ledConfig.speed;
+        break;
+    }
+    case CMD_SET_MACRO: {
+        // local[1]=key_index, local[2]=step_count, local[3..]=mod0,key0,mod1,key1,...
+        uint8_t idx = local[1];
+        uint8_t sc  = local[2];
+        if (idx < keyboard.TOTAL_KEY_COUNT && sc <= MAX_MACRO_STEPS) {
+            MacroStep steps[MAX_MACRO_STEPS] = {};
+            for (int s = 0; s < sc && (3 + s*2 + 1) < 32; s++) {
+                steps[s].modifiers = local[3 + s*2];
+                steps[s].keycode   = local[4 + s*2];
+            }
+            keyboard.setMacro(idx, sc, steps);
+            response[1] = RESP_OK;
+            printf("[CFG] SetMacro key:%d steps:%d\r\n", idx, sc);
+        } else {
+            response[1] = RESP_INVALID_PARAM;
+        }
+        break;
+    }
+    case CMD_GET_MACRO: {
+        uint8_t idx = local[1];
+        if (idx < keyboard.TOTAL_KEY_COUNT) {
+            uint8_t sc = keyboard.getMacroStepCount(idx);
+            const MacroStep* steps = keyboard.getMacroSteps(idx);
+            response[1] = RESP_OK;
+            response[2] = sc;
+            for (int s = 0; s < sc && (3 + s*2 + 1) < 32; s++) {
+                response[3 + s*2] = steps[s].modifiers;
+                response[4 + s*2] = steps[s].keycode;
+            }
+        } else {
+            response[1] = RESP_INVALID_PARAM;
+        }
         break;
     }
     case CMD_SAVE_TO_FLASH: {
