@@ -654,7 +654,6 @@ void RapidTriggerKeyboard::updateRapidTriggerState(RapidTriggerState& state, uin
     if (currentVal < state.low_peak) state.low_peak = currentVal;
 
     uint32_t activation_floor = state.baseline + state.dead_zone;
-    uint32_t press_threshold = activation_floor + state.sensitivity;
     uint32_t release_threshold = activation_floor + (state.sensitivity / 2);
 
     if (state.is_active) {
@@ -669,7 +668,10 @@ void RapidTriggerKeyboard::updateRapidTriggerState(RapidTriggerState& state, uin
             state.high_peak = currentVal;
         }
     } else {
-        if (currentVal > press_threshold) {
+        bool movedEnough = (currentVal > (state.low_peak + state.sensitivity));
+        bool aboveBaseline = (currentVal > activation_floor);
+
+        if (movedEnough && aboveBaseline) {
             state.is_active = true;
             state.high_peak = currentVal;
         }
@@ -678,13 +680,10 @@ void RapidTriggerKeyboard::updateRapidTriggerState(RapidTriggerState& state, uin
             state.is_active = false;
             state.high_peak = currentVal;
             state.low_peak = currentVal;
-        }
 
-        if (!state.is_active && currentVal <= press_threshold) {
+            // キーが完全にオフ(デッドゾーン以下)の時のみ、温度ドリフト等のためベースラインを追従
             int32_t diff = (int32_t)currentVal - (int32_t)state.baseline;
             state.baseline += (diff / 32);
-            state.high_peak = state.baseline;
-            state.low_peak = state.baseline;
         }
     }
 }
