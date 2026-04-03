@@ -284,7 +284,27 @@
         .key-275 { width: 128px; }
         .key-space { width: 296px; }
         .key-h200 { height: 92px; z-index: 10; display:flex; align-items:flex-end; padding-bottom:10px; }
+        .key-enter-jis {
+            width: 68px;
+            height: 92px;
+            position: relative;
+            z-index: 10;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0 0 46px 0;
+            border-radius: 6px;
+            /* True reverse-L outer contour (no lower-left rectangle border) */
+            clip-path: polygon(0 0, 100% 0, 100% 100%, 22% 100%, 22% 58%, 20% 54%, 16% 50%, 10% 48%, 0 48%);
+        }
+        .kb-key-halffull {
+            line-height: 1.15;
+            text-align: center;
+        }
         .kb-spacer.std { width: 44px; }
+        .kb-spacer.fblock { width: 22px; }
+        .kb-spacer.del { width: 17px; }
+        .kb-spacer.enter { width: 68px; }
         .kb-spacer.half { width: 22px; }
         .kb-spacer.fgap { width: 20px; }
         .kb-spacer.nav { width: 192px; }
@@ -792,6 +812,7 @@
                     <div class="keyboard-grid">
   <div class="kb-row">
     <div class="kb-key" data-key="13" id="kb-key-13">Esc</div>
+                <div class="kb-spacer fblock"></div>
     <div class="kb-key" data-key="10" id="kb-key-10">F1</div>
     <div class="kb-key" data-key="28" id="kb-key-28">F2</div>
     <div class="kb-key" data-key="25" id="kb-key-25">F3</div>
@@ -803,12 +824,12 @@
     <div class="kb-key" data-key="61" id="kb-key-61">F9</div>
     <div class="kb-key" data-key="59" id="kb-key-59">F10</div>
     <div class="kb-key" data-key="47" id="kb-key-47">F11</div>
-    <div class="kb-key" data-key="44" id="kb-key-44">F12</div>
-    <div class="kb-spacer half"></div>
+        <div class="kb-key" data-key="44" id="kb-key-44">F12</div>
+        <div class="kb-spacer del"></div>
     <div class="kb-key" data-key="42" id="kb-key-42">Del</div>
   </div>
   <div class="kb-row">
-    <div class="kb-key" data-key="14" id="kb-key-14">半/全</div>
+        <div class="kb-key kb-key-halffull" data-key="14" id="kb-key-14">半角<br>全角</div>
     <div class="kb-key" data-key="11" id="kb-key-11">1</div>
     <div class="kb-key" data-key="9" id="kb-key-9">2</div>
     <div class="kb-key" data-key="29" id="kb-key-29">3</div>
@@ -838,7 +859,7 @@
     <div class="kb-key" data-key="57" id="kb-key-57">P</div>
     <div class="kb-key" data-key="56" id="kb-key-56">@</div>
     <div class="kb-key" data-key="45" id="kb-key-45">[</div>
-    <div class="kb-key key-150 key-h200" data-key="40" id="kb-key-40">Enter</div>
+        <div class="kb-key key-enter-jis" data-key="40" id="kb-key-40">Enter</div>
   </div>
   <div class="kb-row">
     <div class="kb-key key-175" data-key="0" id="kb-key-0">Caps</div>
@@ -854,6 +875,7 @@
     <div class="kb-key" data-key="71" id="kb-key-71">;</div>
     <div class="kb-key" data-key="48" id="kb-key-48">:</div>
     <div class="kb-key" data-key="53" id="kb-key-53">]</div>
+        <div class="kb-spacer enter"></div>
   </div>
   <div class="kb-row">
     <div class="kb-key key-225" data-key="1" id="kb-key-1">Shift</div>
@@ -1204,7 +1226,12 @@
         }
         function updateSvgLabel(idx) {
             const rect = document.querySelector(`.kb-key[data-key="${idx}"]`);
-            if (rect) rect.textContent = keycodeToLabel(kcValues[idx]);
+            if (!rect) return;
+            if (idx === 14) {
+                rect.innerHTML = '半角<br>全角';
+                return;
+            }
+            rect.textContent = keycodeToLabel(kcValues[idx]);
         }
 
         // ===== Key Select =====

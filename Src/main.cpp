@@ -525,7 +525,7 @@ extern "C" void loop()
         KeyboardReport* rpt = keyboard.getReport();
         bool any_key = (rpt->MODIFIER != 0);
         if (!any_key) {
-            for (int i = 0; i < 15; i++) {
+            for (size_t i = 0; i < sizeof(rpt->KEYS); i++) {
                 if (rpt->KEYS[i] != 0) { any_key = true; break; }
             }
         }
