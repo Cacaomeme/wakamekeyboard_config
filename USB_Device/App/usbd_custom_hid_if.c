@@ -114,14 +114,14 @@ __ALIGN_BEGIN static uint8_t CUSTOM_HID_ReportDesc_FS[USBD_CUSTOM_HID_REPORT_DES
   0x75, 0x08,        //   Report Size (8)
   0x81, 0x03,        //   Input (Const,Var,Abs)
 
-  // Bitmap Key Array (120 keys = 15 bytes)
-  0x95, 0x78,        //   Report Count (120)
+  // Bitmap Key Array (144 keys = 18 bytes, covers JIS International 0x87-0x8B)
+  0x96, 0x90, 0x00,  //   Report Count (144, 2-byte encoding)
   0x75, 0x01,        //   Report Size (1)
   0x15, 0x00,        //   Logical Minimum (0)
   0x25, 0x01,        //   Logical Maximum (1)
   0x05, 0x07,        //   Usage Page (Kbrd/Keypad)
   0x19, 0x00,        //   Usage Minimum (0x00)
-  0x29, 0x77,        //   Usage Maximum (0x77 = 119)
+  0x2A, 0x8F, 0x00,  //   Usage Maximum (0x8F = 143)
   0x81, 0x02,        //   Input (Data,Var,Abs)
   0xC0,              // End Collection (Keyboard)
 
@@ -165,8 +165,6 @@ __ALIGN_BEGIN static uint8_t CUSTOM_HID_ReportDesc_FS[USBD_CUSTOM_HID_REPORT_DES
   0xC0,              // End Collection (Vendor)
 
   /* USER CODE END 0 */
-  // Note: All collections are closed in USER CODE above. 
-  // This final byte is required by the array size but all END_COLLECTIONs are accounted for.
 };
 
 /* USER CODE BEGIN PRIVATE_VARIABLES */

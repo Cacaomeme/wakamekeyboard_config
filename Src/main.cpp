@@ -45,20 +45,19 @@ volatile uint8_t last_payload[4] = {0};
 #define RESP_INVALID_PARAM   0x02
 
 // ===== ADCソース定義 =====
-// 7つのADCソース (各MUXの出力先)
+// 6つのADCソース (各MUXの出力先)
 struct ADCSourceDef {
     ADC_HandleTypeDef* hadc;
     uint32_t channel;
 };
 
-static const ADCSourceDef ADC_SOURCES[7] = {
-    { &hadc1, ADC_CHANNEL_1  },  // Source 0: ADC1_IN1  (PA0)
-    { &hadc1, ADC_CHANNEL_2  },  // Source 1: ADC1_IN2  (PA1)
+static const ADCSourceDef ADC_SOURCES[6] = {
+    { &hadc1, ADC_CHANNEL_15 },  // Source 0: ADC1_IN15 (PB0)
+    { &hadc2, ADC_CHANNEL_4  },  // Source 1: ADC2_IN4  (PA7)
     { &hadc2, ADC_CHANNEL_3  },  // Source 2: ADC2_IN3  (PA6)
-    { &hadc2, ADC_CHANNEL_4  },  // Source 3: ADC2_IN4  (PA7)
-    { &hadc2, ADC_CHANNEL_10 },  // Source 4: ADC2_IN10 (PF1)
-    { &hadc1, ADC_CHANNEL_10 },  // Source 5: ADC1_IN10 (PF0)
-    { &hadc1, ADC_CHANNEL_15 },  // Source 6: ADC1_IN15 (PB0)
+    { &hadc1, ADC_CHANNEL_2  },  // Source 3: ADC1_IN2  (PA1)
+    { &hadc1, ADC_CHANNEL_1  },  // Source 4: ADC1_IN1  (PA0)
+    { &hadc2, ADC_CHANNEL_10 },  // Source 5: ADC2_IN10 (PF1)
 };
 
 static const char* hidCodeToName(uint8_t code) {
@@ -141,6 +140,13 @@ static const char* hidCodeToName(uint8_t code) {
     case 0xE5: return "R-Shift";
     case 0xE6: return "R-Alt";
     case 0xE7: return "R-GUI";
+    // JIS International keys
+    case 0x32: return "]";
+    case 0x87: return "Ro(\\)";
+    case 0x88: return "Kana";
+    case 0x89: return "Yen";
+    case 0x8A: return "Henkan";
+    case 0x8B: return "Muhenkan";
     default: return "Unknown";
     }
 }
@@ -519,7 +525,7 @@ extern "C" void loop()
         KeyboardReport* rpt = keyboard.getReport();
         bool any_key = (rpt->MODIFIER != 0);
         if (!any_key) {
-            for (int i = 0; i < 15; i++) {
+            for (size_t i = 0; i < sizeof(rpt->KEYS); i++) {
                 if (rpt->KEYS[i] != 0) { any_key = true; break; }
             }
         }
@@ -584,10 +590,10 @@ extern "C" void loop()
                 }
             } else {
                 // Keyboardレポート (Report ID 1)
-                uint8_t kb_buf[18];
+                uint8_t kb_buf[1 + sizeof(KeyboardReport)]; // 21 bytes
                 kb_buf[0] = 0x01;  // Report ID 1: Keyboard
                 memcpy(&kb_buf[1], report, sizeof(KeyboardReport));
-                USBD_CUSTOM_HID_SendReport(&hUsbDeviceFS, kb_buf, 18);
+                USBD_CUSTOM_HID_SendReport(&hUsbDeviceFS, kb_buf, sizeof(kb_buf));
             }
         }
     }
