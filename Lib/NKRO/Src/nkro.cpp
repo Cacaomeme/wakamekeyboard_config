@@ -4,11 +4,11 @@
 
 // ===== Flash設定 =====
 // STM32G431KB: 128KB Flash, Bank 1, Page 2KB × 64
-// 3ページ使用 (60-62): 6KB for 108 keys
+// 3ページ使用 (60-62): 6KB for 82 keys
 #define FLASH_USER_START_ADDR   0x0801E000
 #define FLASH_PAGE_START        60
 #define FLASH_PAGE_COUNT        3
-#define FLASH_MAGIC_NUMBER      0xC00F0005  // v5: full keyboard
+#define FLASH_MAGIC_NUMBER      0xC00F0006  // v6: 70% JIS keyboard
 
 // デフォルト値
 #define DEFAULT_SENSITIVITY  50
@@ -18,132 +18,116 @@
 #define DEFAULT_LED_SPEED    50
 #define INITIAL_CALIBRATION_SAMPLES 16
 
-// デフォルトキーコード (キーインデックス順: 108キー)
+// デフォルトキーコード (6 source × 16 ch = 96 entries, NC=0x00)
 // 0x0000-0x00E7 = 標準キーボード, 0x8xxx = Consumer Control
-static const uint16_t DEFAULT_KEYCODES[108] = {
-    // Source 0 (ADC1_IN1, PA0) MUX 0-15: 16 keys
-    0x28, // 0:  Enter
-    0xE5, // 1:  Right Shift
-    0x50, // 2:  ← (Left Arrow)
-    0x51, // 3:  ↓ (Down Arrow)
-    0x4F, // 4:  → (Right Arrow)
-    0x52, // 5:  ↑ (Up Arrow)
-    0x62, // 6:  Numpad 0
-    0x63, // 7:  Numpad .
-    0x31, // 8:  Backslash
-    0x2A, // 9:  Backspace
-    0x44, // 10: F11
-    0x43, // 11: F10
-    0x2E, // 12: = (Equal)
-    0x30, // 13: ] (Right Bracket)
-    0x2D, // 14: - (Minus)
-    0x42, // 15: F9
+static const uint16_t DEFAULT_KEYCODES[96] = {
+    // Source 0: PB0 (ADC1_IN15) MUX 0-15: 16 keys (all connected)
+    0x39, // 0:  CapsLock
+    0xE1, // 1:  Left Shift
+    0xE0, // 2:  Left Ctrl
+    0xE3, // 3:  Left Win (GUI)
+    0x04, // 4:  A
+    0xE2, // 5:  Left Alt
+    0x1D, // 6:  Z
+    0x16, // 7:  S
+    0x1A, // 8:  W
+    0x1F, // 9:  2
+    0x3A, // 10: F1
+    0x1E, // 11: 1
+    0x14, // 12: Q
+    0x29, // 13: Esc
+    0x35, // 14: 半角全角 (Grave)
+    0x2B, // 15: Tab
 
-    // Source 1 (ADC1_IN2, PA1) MUX 0-15: 16 keys
-    0x33, // 16: ; (Semicolon)
-    0x0F, // 17: L
-    0x37, // 18: . (Period)
-    0x38, // 19: / (Slash)
-    0xE7, // 20: Right GUI (Windows)
-    0x34, // 21: ' (Quote)
-    0x65, // 22: Menu (Application)
-    0xE4, // 23: Right Ctrl
-    0x2F, // 24: [ (Left Bracket)
-    0x41, // 25: F8
-    0x27, // 26: 0
-    0x13, // 27: P
-    0x40, // 28: F7
-    0x26, // 29: 9
-    0x3F, // 30: F6
-    0x12, // 31: O
+    // Source 1: PA7 (ADC2_IN4) MUX 0-15: 15 connected, 1 NC
+    0x07, // 16: D
+    0x1B, // 17: X
+    0x8B, // 18: 無変換 (Muhenkan/International5)
+    0x06, // 19: C
+    0x2C, // 20: L_Space
+    0x09, // 21: F
+    0x19, // 22: V
+    0x00, // 23: NC
+    0x22, // 24: 5
+    0x3D, // 25: F4
+    0x3C, // 26: F3
+    0x21, // 27: 4
+    0x15, // 28: R
+    0x3B, // 29: F2
+    0x20, // 30: 3
+    0x08, // 31: E
 
-    // Source 2 (ADC2_IN3, PA6) MUX 0-3,5-15 (skip MUX4): 15 keys
-    0x0B, // 32: H
-    0x0D, // 33: J
-    0x11, // 34: N
-    0x10, // 35: M
-    // MUX4 skipped (割当なし)
-    0x0E, // 36: K
-    0x36, // 37: , (Comma)
-    0xE6, // 38: Right Alt
-    0x25, // 39: 8
-    0x0C, // 40: I
-    0x3E, // 41: F5
-    0x24, // 42: 7
-    0x18, // 43: U
-    0x3D, // 44: F4
-    0x1C, // 45: Y
-    0x23, // 46: 6
+    // Source 2: PA6 (ADC2_IN3) MUX 0-15: 9 connected, 7 NC
+    0x0A, // 32: G
+    0x00, // 33: NC
+    0x00, // 34: NC
+    0x05, // 35: B
+    0x00, // 36: NC
+    0x00, // 37: NC
+    0x00, // 38: NC
+    0x0B, // 39: H
+    0x24, // 40: 7
+    0x1C, // 41: Y
+    0x3F, // 42: F6
+    0x00, // 43: NC
+    0x23, // 44: 6
+    0x00, // 45: NC
+    0x3E, // 46: F5
+    0x17, // 47: T
 
-    // Source 3 (ADC2_IN4, PA7) MUX 0-15: 16 keys
-    0x1B, // 47: X
-    0x07, // 48: D
-    0x09, // 49: F
-    0x06, // 50: C
-    0x2C, // 51: Space
-    0x0A, // 52: G
-    0x19, // 53: V
-    0x05, // 54: B
-    0x22, // 55: 5
-    0x17, // 56: T
-    0x3C, // 57: F3
-    0x21, // 58: 4
-    0x15, // 59: R
-    0x08, // 60: E
-    0x3B, // 61: F2
-    0x20, // 62: 3
+    // Source 3: PA1 (ADC1_IN2) MUX 0-15: 16 keys (all connected)
+    0x28, // 48: Enter
+    0x2A, // 49: BackSpace
+    0x4C, // 50: Delete
+    0x89, // 51: ￥ (Yen/International3)
+    0x45, // 52: F12
+    0x30, // 53: [ (「)
+    0x2E, // 54: ^ (Equal position)
+    0x44, // 55: F11
+    0x34, // 56: : (Apostrophe position)
+    0x87, // 57: \\ (Ro/International1)
+    0x50, // 58: ←
+    0x51, // 59: ↓
+    0x52, // 60: ↑
+    0x32, // 61: ] (」/Non-US Hash)
+    0x4F, // 62: →
+    0x00, // 63: User Key (unassigned)
 
-    // Source 4 (ADC2_IN10, PF1) MUX 0-15: 16 keys
-    0x61, // 63: Numpad 9
-    0x56, // 64: Numpad -
-    0x60, // 65: Numpad 8
-    0x00, // 66: ユーザーキー1 (初期未割当)
-    0x55, // 67: Numpad *
-    0x00, // 68: ユーザーキー2 (初期未割当)
-    0x5F, // 69: Numpad 7
-    0x54, // 70: Numpad /
-    0x59, // 71: Numpad 1
-    0x5C, // 72: Numpad 4
-    0x5A, // 73: Numpad 2
-    0x58, // 74: Numpad Enter
-    0x5D, // 75: Numpad 5
-    0x57, // 76: Numpad +
-    0x5E, // 77: Numpad 6
-    0x5B, // 78: Numpad 3
+    // Source 4: PA0 (ADC1_IN1) MUX 0-15: 16 keys (all connected)
+    0x2F, // 64: @ (Left Bracket position)
+    0x13, // 65: P
+    0x2D, // 66: -
+    0x43, // 67: F10
+    0x27, // 68: 0
+    0x42, // 69: F9
+    0x26, // 70: 9
+    0x12, // 71: O
+    0x0F, // 72: L
+    0x36, // 73: , (Comma)
+    0x8A, // 74: 変換 (Henkan/International4)
+    0x88, // 75: かな (Kana/International2)
+    0x37, // 76: . (Period)
+    0xE6, // 77: Right Alt
+    0x38, // 78: / (Slash)
+    0x33, // 79: ; (Semicolon)
 
-    // Source 5 (ADC1_IN10, PF0) MUX 0-6,10-15 (skip MUX7-9): 13 keys
-    0x47, // 79: Scroll Lock
-    0x4A, // 80: Home
-    0x46, // 81: Print Screen
-    0x45, // 82: F12
-    0x49, // 83: Insert
-    0x4C, // 84: Delete
-    0x4D, // 85: End
-    // MUX7-9 skipped (未割り当て)
-    0x4E, // 86: Page Down
-    0x53, // 87: Num Lock
-    0x00, // 88: ユーザーキー3 (初期未割当)
-    0x4B, // 89: Page Up
-    0x00, // 90: ユーザーキー4 (初期未割当)
-    0x48, // 91: Pause
-
-    // Source 6 (ADC1_IN15, PB0) MUX 0-15: 16 keys
-    0x39, // 92:  Caps Lock
-    0xE1, // 93:  Left Shift
-    0xE0, // 94:  Left Ctrl
-    0x04, // 95:  A
-    0x16, // 96:  S
-    0x1D, // 97:  Z
-    0xE3, // 98:  Left GUI (Windows)
-    0xE2, // 99:  Left Alt
-    0x3A, // 100: F1
-    0x1F, // 101: 2
-    0x1A, // 102: W
-    0x1E, // 103: 1
-    0x14, // 104: Q
-    0x2B, // 105: Tab
-    0x29, // 106: Escape
-    0x35, // 107: ` (Grave)
+    // Source 5: PF1 (ADC2_IN10) MUX 0-15: 10 connected, 6 NC
+    0x0C, // 80: I
+    0x41, // 81: F8
+    0x25, // 82: 8
+    0x40, // 83: F7
+    0x00, // 84: NC
+    0x18, // 85: U
+    0x00, // 86: NC
+    0x00, // 87: NC
+    0x00, // 88: NC
+    0x00, // 89: NC
+    0x00, // 90: NC
+    0x0D, // 91: J
+    0x11, // 92: N
+    0x2C, // 93: R_Space
+    0x10, // 94: M
+    0x0E, // 95: K
 };
 
 RapidTriggerKeyboard::RapidTriggerKeyboard() {
@@ -165,7 +149,7 @@ void RapidTriggerKeyboard::init() {
 
     int keyCounter = 0;
 
-    auto registerKey = [&](int source, int muxChannel, uint8_t hidCode) {
+    auto registerKey = [&](int source, int muxChannel, uint16_t hidCode) {
         if (keyCounter >= TOTAL_KEY_COUNT) return;
 
         keyMapping[source][muxChannel] = keyCounter;
@@ -190,129 +174,106 @@ void RapidTriggerKeyboard::init() {
         keyCounter++;
     };
 
-    // === Source 0: ADC1_IN1 (PA0) - MUX 0-15 ===
-    registerKey(0, 0,  0x28); // Enter
-    registerKey(0, 1,  0xE5); // Right Shift
-    registerKey(0, 2,  0x50); // ←
-    registerKey(0, 3,  0x51); // ↓
-    registerKey(0, 4,  0x4F); // →
-    registerKey(0, 5,  0x52); // ↑
-    registerKey(0, 6,  0x62); // Numpad 0
-    registerKey(0, 7,  0x63); // Numpad .
-    registerKey(0, 8,  0x31); // Backslash
-    registerKey(0, 9,  0x2A); // Backspace
-    registerKey(0, 10, 0x44); // F11
-    registerKey(0, 11, 0x43); // F10
-    registerKey(0, 12, 0x2E); // =
-    registerKey(0, 13, 0x30); // ]
-    registerKey(0, 14, 0x2D); // -
-    registerKey(0, 15, 0x42); // F9
+    // === Source 0: PB0 (ADC1_IN15) - 16 keys, all connected ===
+    registerKey(0, 0,  0x39); // CapsLock
+    registerKey(0, 1,  0xE1); // Left Shift
+    registerKey(0, 2,  0xE0); // Left Ctrl
+    registerKey(0, 3,  0xE3); // Left Win
+    registerKey(0, 4,  0x04); // A
+    registerKey(0, 5,  0xE2); // Left Alt
+    registerKey(0, 6,  0x1D); // Z
+    registerKey(0, 7,  0x16); // S
+    registerKey(0, 8,  0x1A); // W
+    registerKey(0, 9,  0x1F); // 2
+    registerKey(0, 10, 0x3A); // F1
+    registerKey(0, 11, 0x1E); // 1
+    registerKey(0, 12, 0x14); // Q
+    registerKey(0, 13, 0x29); // Esc
+    registerKey(0, 14, 0x35); // 半角全角
+    registerKey(0, 15, 0x2B); // Tab
 
-    // === Source 1: ADC1_IN2 (PA1) - MUX 0-15 ===
-    registerKey(1, 0,  0x33); // ;
-    registerKey(1, 1,  0x0F); // L
-    registerKey(1, 2,  0x37); // .
-    registerKey(1, 3,  0x38); // /
-    registerKey(1, 4,  0xE7); // Right GUI
-    registerKey(1, 5,  0x34); // '
-    registerKey(1, 6,  0x65); // Menu
-    registerKey(1, 7,  0xE4); // Right Ctrl
-    registerKey(1, 8,  0x2F); // [
-    registerKey(1, 9,  0x41); // F8
-    registerKey(1, 10, 0x27); // 0
-    registerKey(1, 11, 0x13); // P
-    registerKey(1, 12, 0x40); // F7
-    registerKey(1, 13, 0x26); // 9
-    registerKey(1, 14, 0x3F); // F6
-    registerKey(1, 15, 0x12); // O
+    // === Source 1: PA7 (ADC2_IN4) - 15 connected, skip MUX7 ===
+    registerKey(1, 0,  0x07); // D
+    registerKey(1, 1,  0x1B); // X
+    registerKey(1, 2,  0x8B); // 無変換
+    registerKey(1, 3,  0x06); // C
+    registerKey(1, 4,  0x2C); // L_Space
+    registerKey(1, 5,  0x09); // F
+    registerKey(1, 6,  0x19); // V
+    // MUX 7: NC
+    registerKey(1, 8,  0x22); // 5
+    registerKey(1, 9,  0x3D); // F4
+    registerKey(1, 10, 0x3C); // F3
+    registerKey(1, 11, 0x21); // 4
+    registerKey(1, 12, 0x15); // R
+    registerKey(1, 13, 0x3B); // F2
+    registerKey(1, 14, 0x20); // 3
+    registerKey(1, 15, 0x08); // E
 
-    // === Source 2: ADC2_IN3 (PA6) - skip MUX4 ===
-    registerKey(2, 0,  0x0B); // H
-    registerKey(2, 1,  0x0D); // J
-    registerKey(2, 2,  0x11); // N
-    registerKey(2, 3,  0x10); // M
-    // MUX 4: 割当なし (keyMapping[2][4] = -1)
-    registerKey(2, 5,  0x0E); // K
-    registerKey(2, 6,  0x36); // ,
-    registerKey(2, 7,  0xE6); // Right Alt
-    registerKey(2, 8,  0x25); // 8
-    registerKey(2, 9,  0x0C); // I
-    registerKey(2, 10, 0x3E); // F5
-    registerKey(2, 11, 0x24); // 7
-    registerKey(2, 12, 0x18); // U
-    registerKey(2, 13, 0x3D); // F4
-    registerKey(2, 14, 0x1C); // Y
-    registerKey(2, 15, 0x23); // 6
+    // === Source 2: PA6 (ADC2_IN3) - 9 connected, many NC ===
+    registerKey(2, 0,  0x0A); // G
+    // MUX 1,2: NC
+    registerKey(2, 3,  0x05); // B
+    // MUX 4,5,6: NC
+    registerKey(2, 7,  0x0B); // H
+    registerKey(2, 8,  0x24); // 7
+    registerKey(2, 9,  0x1C); // Y
+    registerKey(2, 10, 0x3F); // F6
+    // MUX 11: NC
+    registerKey(2, 12, 0x23); // 6
+    // MUX 13: NC
+    registerKey(2, 14, 0x3E); // F5
+    registerKey(2, 15, 0x17); // T
 
-    // === Source 3: ADC2_IN4 (PA7) - MUX 0-15 ===
-    registerKey(3, 0,  0x1B); // X
-    registerKey(3, 1,  0x07); // D
-    registerKey(3, 2,  0x09); // F
-    registerKey(3, 3,  0x06); // C
-    registerKey(3, 4,  0x2C); // Space
-    registerKey(3, 5,  0x0A); // G
-    registerKey(3, 6,  0x19); // V
-    registerKey(3, 7,  0x05); // B
-    registerKey(3, 8,  0x22); // 5
-    registerKey(3, 9,  0x17); // T
-    registerKey(3, 10, 0x3C); // F3
-    registerKey(3, 11, 0x21); // 4
-    registerKey(3, 12, 0x15); // R
-    registerKey(3, 13, 0x08); // E
-    registerKey(3, 14, 0x3B); // F2
-    registerKey(3, 15, 0x20); // 3
+    // === Source 3: PA1 (ADC1_IN2) - 16 keys, all connected ===
+    registerKey(3, 0,  0x28); // Enter
+    registerKey(3, 1,  0x2A); // BackSpace
+    registerKey(3, 2,  0x4C); // Delete
+    registerKey(3, 3,  0x89); // ￥ (Yen)
+    registerKey(3, 4,  0x45); // F12
+    registerKey(3, 5,  0x30); // [ (「)
+    registerKey(3, 6,  0x2E); // ^
+    registerKey(3, 7,  0x44); // F11
+    registerKey(3, 8,  0x34); // :
+    registerKey(3, 9,  0x87); // \ (Ro)
+    registerKey(3, 10, 0x50); // ←
+    registerKey(3, 11, 0x51); // ↓
+    registerKey(3, 12, 0x52); // ↑
+    registerKey(3, 13, 0x32); // ] (」)
+    registerKey(3, 14, 0x4F); // →
+    registerKey(3, 15, 0x00); // User Key
 
-    // === Source 4: ADC2_IN10 (PF1) - MUX 0-15 ===
-    registerKey(4, 0,  0x61); // Numpad 9
-    registerKey(4, 1,  0x56); // Numpad -
-    registerKey(4, 2,  0x60); // Numpad 8
-    registerKey(4, 3,  0x00); // User Key 1
-    registerKey(4, 4,  0x55); // Numpad *
-    registerKey(4, 5,  0x00); // User Key 2
-    registerKey(4, 6,  0x5F); // Numpad 7
-    registerKey(4, 7,  0x54); // Numpad /
-    registerKey(4, 8,  0x59); // Numpad 1
-    registerKey(4, 9,  0x5C); // Numpad 4
-    registerKey(4, 10, 0x5A); // Numpad 2
-    registerKey(4, 11, 0x58); // Numpad Enter
-    registerKey(4, 12, 0x5D); // Numpad 5
-    registerKey(4, 13, 0x57); // Numpad +
-    registerKey(4, 14, 0x5E); // Numpad 6
-    registerKey(4, 15, 0x5B); // Numpad 3
+    // === Source 4: PA0 (ADC1_IN1) - 16 keys, all connected ===
+    registerKey(4, 0,  0x2F); // @
+    registerKey(4, 1,  0x13); // P
+    registerKey(4, 2,  0x2D); // -
+    registerKey(4, 3,  0x43); // F10
+    registerKey(4, 4,  0x27); // 0
+    registerKey(4, 5,  0x42); // F9
+    registerKey(4, 6,  0x26); // 9
+    registerKey(4, 7,  0x12); // O
+    registerKey(4, 8,  0x0F); // L
+    registerKey(4, 9,  0x36); // ,
+    registerKey(4, 10, 0x8A); // 変換
+    registerKey(4, 11, 0x88); // かな
+    registerKey(4, 12, 0x37); // .
+    registerKey(4, 13, 0xE6); // Right Alt
+    registerKey(4, 14, 0x38); // /
+    registerKey(4, 15, 0x33); // ;
 
-    // === Source 5: ADC1_IN10 (PF0) - skip MUX 7,8,9 ===
-    registerKey(5, 0,  0x47); // Scroll Lock
-    registerKey(5, 1,  0x4A); // Home
-    registerKey(5, 2,  0x46); // Print Screen
-    registerKey(5, 3,  0x45); // F12
-    registerKey(5, 4,  0x49); // Insert
-    registerKey(5, 5,  0x4C); // Delete
-    registerKey(5, 6,  0x4D); // End
-    // MUX 7,8,9: 未割り当て (keyMapping[5][7..9] = -1)
-    registerKey(5, 10, 0x4E); // Page Down
-    registerKey(5, 11, 0x53); // Num Lock
-    registerKey(5, 12, 0x00); // User Key 3
-    registerKey(5, 13, 0x4B); // Page Up
-    registerKey(5, 14, 0x00); // User Key 4
-    registerKey(5, 15, 0x48); // Pause
-
-    // === Source 6: ADC1_IN15 (PB0) - MUX 0-15 ===
-    registerKey(6, 0,  0x39); // Caps Lock
-    registerKey(6, 1,  0xE1); // Left Shift
-    registerKey(6, 2,  0xE0); // Left Ctrl
-    registerKey(6, 3,  0x04); // A
-    registerKey(6, 4,  0x16); // S
-    registerKey(6, 5,  0x1D); // Z
-    registerKey(6, 6,  0xE3); // Left GUI (Windows)
-    registerKey(6, 7,  0xE2); // Left Alt
-    registerKey(6, 8,  0x3A); // F1
-    registerKey(6, 9,  0x1F); // 2
-    registerKey(6, 10, 0x1A); // W
-    registerKey(6, 11, 0x1E); // 1
-    registerKey(6, 12, 0x14); // Q
-    registerKey(6, 13, 0x2B); // Tab
-    registerKey(6, 14, 0x29); // Escape
-    registerKey(6, 15, 0x35); // ` (Grave)
+    // === Source 5: PF1 (ADC2_IN10) - 10 connected, skip MUX 4,6-10 ===
+    registerKey(5, 0,  0x0C); // I
+    registerKey(5, 1,  0x41); // F8
+    registerKey(5, 2,  0x25); // 8
+    registerKey(5, 3,  0x40); // F7
+    // MUX 4: NC
+    registerKey(5, 5,  0x18); // U
+    // MUX 6,7,8,9,10: NC
+    registerKey(5, 11, 0x0D); // J
+    registerKey(5, 12, 0x11); // N
+    registerKey(5, 13, 0x2C); // R_Space
+    registerKey(5, 14, 0x10); // M
+    registerKey(5, 15, 0x0E); // K
 
     printf("[INIT] Registered %d keys\r\n", keyCounter);
 }
@@ -697,8 +658,8 @@ static inline void applyKeyToReport(KeyboardReport& report, uint8_t code) {
     if (code >= 0xE0 && code <= 0xE7) {
         // 修飾キー → MODIFIER byte
         report.MODIFIER |= (1 << (code - 0xE0));
-    } else if (code > 0 && code < 120) {
-        // 通常キー → KEYS bitmap
+    } else if (code > 0 && code < 140) {
+        // 通常キー → KEYS bitmap (0x01-0x8B)
         report.KEYS[code / 8] |= (1 << (code % 8));
     }
 }

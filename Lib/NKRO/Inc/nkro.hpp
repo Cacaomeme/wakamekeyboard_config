@@ -10,11 +10,11 @@
 #define IS_CONSUMER_KEY(code) (((code) & CONSUMER_KEY_FLAG) != 0)
 #define CONSUMER_USAGE(code)  ((code) & 0x7FFF)
 
-// NKRO対応のレポート構造体 (17バイト)
+// NKRO対応のレポート構造体 (20バイト)
 typedef struct {
     uint8_t MODIFIER;
     uint8_t RESERVED;
-    uint8_t KEYS[15]; // 120 keys / 8 = 15 bytes
+    uint8_t KEYS[18]; // 140 keys / 8 = 18 bytes (0x00-0x8B, JIS International含む)
 } KeyboardReport;
 
 // LEDモード
@@ -72,8 +72,8 @@ struct RapidTriggerState {
 class RapidTriggerKeyboard {
 public:
     static const int MUX_CH_COUNT = 16;
-    static const int SOURCE_COUNT = 7;     // ADCソース数
-    static const int TOTAL_KEY_COUNT = 108; // フルサイズキーボード
+    static const int SOURCE_COUNT = 6;     // ADCソース数
+    static const int TOTAL_KEY_COUNT = 82;  // 70% JISキーボード
 
     RapidTriggerKeyboard();
     void init();

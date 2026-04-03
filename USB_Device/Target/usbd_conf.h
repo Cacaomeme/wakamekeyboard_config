@@ -77,13 +77,13 @@
 /*---------- -----------*/
 #define USBD_SELF_POWERED     1U
 /*---------- -----------*/
-#define CUSTOM_HID_EPIN_SIZE     0x12U
+#define CUSTOM_HID_EPIN_SIZE     0x15U
 /*---------- -----------*/
 #define CUSTOM_HID_EPOUT_SIZE     0x21U
 /*---------- -----------*/
 #define USBD_CUSTOMHID_OUTREPORT_BUF_SIZE     33U
 /*---------- -----------*/
-#define USBD_CUSTOM_HID_REPORT_DESC_SIZE     110U
+#define USBD_CUSTOM_HID_REPORT_DESC_SIZE     112U
 /*---------- -----------*/
 #define CUSTOM_HID_FS_BINTERVAL     0x1U
 
