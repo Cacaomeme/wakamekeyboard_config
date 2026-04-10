@@ -1156,7 +1156,7 @@
         let ledMode = 0, ledBrightness = 255, ledSpeedVal = 50; // 0-100 (x10)
         // マクロ: 各キーにステップ配列 [{mod, key}, ...]
         const MAX_MACRO_STEPS = 8;
-        let macroData = Array.from({ length: keyCount }, () => []);  // [[{mod,key},...],...]
+        let macroData = Array.from({ length: keyCount }, () => []);  // [[{action,mod,key},...],...]
         let macroDataOrig = Array.from({ length: keyCount }, () => []);
 
         const MODIFIERS = [
@@ -1357,7 +1357,7 @@
                     addBtn.className = 'macro-clear-btn';
                     addBtn.style.cssText = 'align-self:flex-start;color:var(--accent);border-color:var(--accent)';
                     addBtn.textContent = '+ ステップ追加';
-                    addBtn.onclick = () => { macroData[i].push({ mod: 0, key: 0 }); buildMacroGrid(); };
+                    addBtn.onclick = () => { macroData[i].push({ action: 0, mod: 0, key: 0 }); buildMacroGrid(); };
                     stepsArea.appendChild(addBtn);
                 }
                 row.appendChild(stepsArea);
@@ -1381,6 +1381,17 @@
             num.style.cssText = 'color:var(--text-muted);font-size:0.75rem;min-width:16px';
             num.textContent = (stepIdx + 1) + '.';
             el.appendChild(num);
+
+            // Action toggle (押す/離す)
+            const actBtn = document.createElement('button');
+            actBtn.className = 'mod-btn' + (step.action === 1 ? ' active' : '');
+            actBtn.style.cssText = 'min-width:36px;font-size:0.65rem;' + (step.action === 1 ? 'background:rgba(214,48,49,0.3);border-color:#d63031;color:#ff7675' : '');
+            actBtn.textContent = step.action === 1 ? '離す' : '押す';
+            actBtn.onclick = () => {
+                step.action = step.action === 1 ? 0 : 1;
+                buildMacroGrid();
+            };
+            el.appendChild(actBtn);
 
             for (const mod of MODIFIERS) {
                 const btn = document.createElement('button');
@@ -1632,8 +1643,8 @@
                     if (resp[1] === RESP.OK) {
                         const sc = resp[2];
                         macroData[i] = [];
-                        for (let s = 0; s < sc && (3 + s * 2 + 1) < 32; s++) {
-                            macroData[i].push({ mod: resp[3 + s * 2], key: resp[4 + s * 2] });
+                        for (let s = 0; s < sc && (3 + s * 3 + 2) < 32; s++) {
+                            macroData[i].push({ action: resp[3 + s * 3], mod: resp[4 + s * 3], key: resp[5 + s * 3] });
                         }
                         macroDataOrig[i] = macroData[i].map(s => ({ ...s }));
                     }
@@ -1678,10 +1689,10 @@
                     const cur = macroData[i];
                     const orig = macroDataOrig[i];
                     const changed = cur.length !== orig.length ||
-                        cur.some((s, j) => s.mod !== orig[j]?.mod || s.key !== orig[j]?.key);
+                        cur.some((s, j) => s.action !== orig[j]?.action || s.mod !== orig[j]?.mod || s.key !== orig[j]?.key);
                     if (changed) {
                         const payload = [CMD.SET_MACRO, i, cur.length];
-                        for (const s of cur) { payload.push(s.mod, s.key); }
+                        for (const s of cur) { payload.push(s.action, s.mod, s.key); }
                         await sendFR(payload);
                         const r = await recvFR();
                         if (r[1] === RESP.OK) { macroDataOrig[i] = cur.map(s => ({ ...s })); count++; }

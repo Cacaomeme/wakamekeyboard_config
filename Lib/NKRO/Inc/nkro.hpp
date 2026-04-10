@@ -36,8 +36,11 @@ struct LedConfig {
 
 // マクロステップ
 #define MAX_MACRO_STEPS 8
+#define MACRO_ACTION_PRESS   0
+#define MACRO_ACTION_RELEASE 1
 
 struct MacroStep {
+    uint8_t action;    // 0=PRESS, 1=RELEASE
     uint8_t modifiers;
     uint8_t keycode;
 };
@@ -67,6 +70,10 @@ struct RapidTriggerState {
     uint8_t macro_exec_step;
     bool macro_exec_pressing;
     uint32_t macro_exec_tick;
+    bool macro_completed;        // 全ステップ完了済み
+    uint8_t macro_held_modifiers; // 現在保持中の修飾キー
+    uint8_t macro_held_keys[6];  // 現在保持中のキー (最大6個)
+    uint8_t macro_held_count;    // 保持中キー数
 };
 
 class RapidTriggerKeyboard {
