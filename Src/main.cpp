@@ -39,6 +39,8 @@ volatile uint8_t last_payload[4] = {0};
 #define CMD_GET_LED_MODE     0x31
 #define CMD_SET_MACRO        0x40
 #define CMD_GET_MACRO        0x41
+#define CMD_SET_COMBO        0x50
+#define CMD_GET_COMBO        0x51
 
 #define RESP_OK              0x00
 #define RESP_ERROR           0x01
@@ -368,6 +370,44 @@ extern "C" void ProcessFeatureReport(uint8_t* data, uint16_t len, uint8_t* respo
     case CMD_GET_KEY_COUNT: {
         response[1] = RESP_OK;
         response[2] = (uint8_t)RapidTriggerKeyboard::TOTAL_KEY_COUNT;
+        break;
+    }
+    case CMD_SET_COMBO: {
+        uint8_t idx = local[1];
+        uint8_t trigMod = local[2];
+        uint8_t trigKey = local[3];
+        uint8_t sc  = local[4];
+        if (idx < MAX_COMBOS && sc <= MAX_COMBO_STEPS) {
+            MacroStep steps[MAX_COMBO_STEPS] = {};
+            for (int s = 0; s < sc && (5 + s*3 + 2) < 32; s++) {
+                steps[s].action    = local[5 + s*3];
+                steps[s].modifiers = local[6 + s*3];
+                steps[s].keycode   = local[7 + s*3];
+            }
+            keyboard.setCombo(idx, trigMod, trigKey, sc, steps);
+            response[1] = RESP_OK;
+        } else {
+            response[1] = RESP_INVALID_PARAM;
+        }
+        break;
+    }
+    case CMD_GET_COMBO: {
+        uint8_t idx = local[1];
+        if (idx < MAX_COMBOS) {
+            response[1] = RESP_OK;
+            response[2] = keyboard.getComboTriggerMod(idx);
+            response[3] = keyboard.getComboTriggerKey(idx);
+            uint8_t sc = keyboard.getComboStepCount(idx);
+            response[4] = sc;
+            const MacroStep* steps = keyboard.getComboSteps(idx);
+            for (int s = 0; s < sc && (5 + s*3 + 2) < 32; s++) {
+                response[5 + s*3] = steps[s].action;
+                response[6 + s*3] = steps[s].modifiers;
+                response[7 + s*3] = steps[s].keycode;
+            }
+        } else {
+            response[1] = RESP_INVALID_PARAM;
+        }
         break;
     }
     default:

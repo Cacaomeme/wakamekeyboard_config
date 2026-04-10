@@ -668,6 +668,39 @@
             color: var(--danger);
         }
 
+        /* ===== Tab 3: Combo ===== */
+        .combo-slot {
+            padding: 12px;
+            background: var(--surface);
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            margin-bottom: 8px;
+        }
+        .combo-slot.has-combo {
+            border-color: var(--accent);
+            background: rgba(99, 102, 241, 0.05);
+        }
+        .combo-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+            font-size: 0.85rem;
+        }
+        .combo-trigger {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 0;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 6px;
+        }
+        .combo-label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            min-width: 60px;
+        }
+
         /* ===== Key Picker Overlay ===== */
         .key-picker-overlay {
             display: none;
@@ -771,8 +804,8 @@
     </div>
     <div class="app">
         <div class="header">
-            <h1>⚡ Rapid Trigger Config</h1>
-            <p>WebHID Keyboard Configuration Tool</p>
+            <h1>⚡ Wakame Keyboard Hub</h1>
+            <p>Rapid Trigger Keyboard Configuration Tool</p>
         </div>
 
         <div class="conn-bar">
@@ -803,6 +836,7 @@
             <button class="tab active" onclick="switchTab(0)">⌨ キー設定</button>
             <button class="tab" onclick="switchTab(1)">💡 LED</button>
             <button class="tab" onclick="switchTab(2)">⚡ マクロ</button>
+            <button class="tab" onclick="switchTab(3)">🔗 コンボ</button>
         </div>
 
         <!-- Tab 0: Key Config -->
@@ -1020,6 +1054,14 @@
             <div class="macro-grid" id="macroGrid"></div>
         </div>
 
+        <!-- Tab 3: Combo -->
+        <div class="tab-panel" id="panel-3">
+            <div style="margin-bottom:16px;color:var(--text-muted);font-size:0.85rem;">
+                複数キーの同時押しで別のマクロを実行します。例: Ctrl+B → Ctrl+C, Ctrl+V
+            </div>
+            <div id="comboGrid"></div>
+        </div>
+
         <div class="log-area" id="logArea"></div>
     </div>
 
@@ -1034,6 +1076,7 @@
             GET_KEY_COUNT: 0x20,
             SET_LED_MODE: 0x30, GET_LED_MODE: 0x31,
             SET_MACRO: 0x40, GET_MACRO: 0x41,
+            SET_COMBO: 0x50, GET_COMBO: 0x51,
         };
         const RESP = { OK: 0x00, ERROR: 0x01, INVALID: 0x02 };
 
@@ -1159,6 +1202,12 @@
         let macroData = Array.from({ length: keyCount }, () => []);  // [[{action,mod,key},...],...]
         let macroDataOrig = Array.from({ length: keyCount }, () => []);
 
+        // コンボ: 8スロット
+        const COMBO_SLOT_COUNT = 8;
+        const COMBO_STEP_LIMIT = 8;
+        let comboData = Array.from({ length: COMBO_SLOT_COUNT }, () => ({ trigMod: 0, trigKey: 0, steps: [] }));
+        let comboDataOrig = Array.from({ length: COMBO_SLOT_COUNT }, () => ({ trigMod: 0, trigKey: 0, steps: [] }));
+
         const MODIFIERS = [
             { bit: 0x01, label: 'Ctrl' },
             { bit: 0x02, label: 'Shift' },
@@ -1218,6 +1267,7 @@
             document.querySelectorAll('.tab-panel').forEach((p, i) => p.classList.toggle('active', i === n));
             if (n === 1) startLedPreview(); else stopLedPreview();
             if (n === 2) buildMacroGrid();
+            if (n === 3) buildComboGrid();
         }
 
         // ===== SVG label update =====
@@ -1431,6 +1481,147 @@
             el.appendChild(delBtn);
 
             return el;
+        }
+
+        // ===== Combo Builder =====
+        function buildComboGrid() {
+            const grid = document.getElementById('comboGrid');
+            grid.innerHTML = '';
+            
+            for (let i = 0; i < COMBO_SLOT_COUNT; i++) {
+                const combo = comboData[i];
+                const slot = document.createElement('div');
+                slot.className = 'combo-slot' + (combo.steps.length > 0 ? ' has-combo' : '');
+                
+                const hdr = document.createElement('div');
+                hdr.className = 'combo-header';
+                hdr.innerHTML = `<strong>Combo ${i + 1}</strong>`;
+                slot.appendChild(hdr);
+
+                // Trigger Config
+                const trig = document.createElement('div');
+                trig.className = 'combo-trigger';
+                const lbl = document.createElement('span');
+                lbl.className = 'combo-label';
+                lbl.textContent = 'トリガー条件:';
+                trig.appendChild(lbl);
+
+                for (const mod of MODIFIERS) {
+                    const btn = document.createElement('button');
+                    btn.className = 'mod-btn' + ((combo.trigMod & mod.bit) ? ' active' : '');
+                    btn.textContent = mod.label;
+                    btn.onclick = () => { combo.trigMod ^= mod.bit; buildComboGrid(); };
+                    trig.appendChild(btn);
+                }
+
+                const plus = document.createElement('span');
+                plus.textContent = '+';
+                plus.style.cssText = 'color:var(--text-muted);font-size:0.8rem;margin:0 4px';
+                trig.appendChild(plus);
+
+                const keyBtn = document.createElement('button');
+                keyBtn.className = 'key-pick-btn';
+                keyBtn.textContent = keyLabel(combo.trigKey);
+                keyBtn.onclick = () => {
+                    openKeyPicker(combo.trigKey, MACRO_KEYS, (code) => {
+                        combo.trigKey = code;
+                        buildComboGrid();
+                    });
+                };
+                trig.appendChild(keyBtn);
+                slot.appendChild(trig);
+
+                // Action Config (same as macro)
+                const actList = document.createElement('div');
+                actList.className = 'macro-config';
+                
+                for (let j = 0; j < combo.steps.length; j++) {
+                    // Re-use buildStepEl logic but adapt for combo
+                    actList.appendChild(buildComboStepEl(i, j, combo.steps[j]));
+                }
+                
+                if (combo.steps.length < COMBO_STEP_LIMIT) {
+                    const addBtn = document.createElement('button');
+                    addBtn.className = 'macro-clear-btn';
+                    addBtn.style.cssText = 'border-color:var(--accent);color:var(--accent);margin-left:auto';
+                    addBtn.textContent = '+ アクション追加';
+                    addBtn.onclick = () => {
+                        combo.steps.push({ action: 0, mod: 0, key: 0 });
+                        buildComboGrid();
+                    };
+                    actList.appendChild(addBtn);
+                } else {
+                    const spacer = document.createElement('div');
+                    spacer.style.marginLeft = 'auto';
+                    spacer.style.fontSize = '0.7rem';
+                    spacer.style.color = 'var(--text-muted)';
+                    spacer.textContent = '(上限)';
+                    actList.appendChild(spacer);
+                }
+
+                if (combo.steps.length > 0) {
+                    const clearBtn = document.createElement('button');
+                    clearBtn.className = 'macro-clear-btn';
+                    clearBtn.innerHTML = '✕ クリア';
+                    clearBtn.onclick = () => { combo.steps = []; buildComboGrid(); };
+                    actList.appendChild(clearBtn);
+                }
+                
+                slot.appendChild(actList);
+                grid.appendChild(slot);
+            }
+        }
+
+        function buildComboStepEl(comboIdx, stepIdx, step) {
+            const el = document.createElement('div');
+            el.style.cssText = 'display:flex;align-items:center;gap:6px;padding:2px 0';
+
+            const num = document.createElement('span');
+            num.style.cssText = 'color:var(--text-muted);font-size:0.75rem;min-width:16px';
+            num.textContent = (stepIdx + 1) + '.';
+            el.appendChild(num);
+
+            const actBtn = document.createElement('button');
+            actBtn.className = 'mod-btn' + (step.action === 1 ? ' active' : '');
+            actBtn.style.cssText = 'min-width:36px;font-size:0.65rem;' + (step.action === 1 ? 'background:rgba(214,48,49,0.3);border-color:#d63031;color:#ff7675' : '');
+            actBtn.textContent = step.action === 1 ? '離す' : '押す';
+            actBtn.onclick = () => { step.action = step.action === 1 ? 0 : 1; buildComboGrid(); };
+            el.appendChild(actBtn);
+
+            for (const mod of MODIFIERS) {
+                const btn = document.createElement('button');
+                btn.className = 'mod-btn' + ((step.mod & mod.bit) ? ' active' : '');
+                btn.textContent = mod.label;
+                btn.onclick = () => { step.mod ^= mod.bit; btn.classList.toggle('active'); };
+                el.appendChild(btn);
+            }
+
+            const plus = document.createElement('span');
+            plus.textContent = '+';
+            plus.style.cssText = 'color:var(--text-muted);font-size:0.8rem';
+            el.appendChild(plus);
+
+            const btn = document.createElement('button');
+            btn.className = 'key-pick-btn';
+            btn.textContent = keyLabel(step.key);
+            btn.onclick = () => {
+                openKeyPicker(step.key, MACRO_KEYS, (code) => { step.key = code; buildComboGrid(); });
+            };
+            el.appendChild(btn);
+
+            const delBtn = document.createElement('button');
+            delBtn.className = 'macro-clear-btn';
+            delBtn.textContent = '✕';
+            delBtn.onclick = () => { comboData[comboIdx].steps.splice(stepIdx, 1); buildComboGrid(); };
+            el.appendChild(delBtn);
+
+            return el;
+        }
+
+        function keyLabel(code) {
+            if (code === 0) return 'なし';
+            const e = HID_KEYCODES.find(k => k.code === code);
+            return e ? e.name : '0x' + code.toString(16).toUpperCase();
         }
 
         // ===== LED Preview (firmware-accurate timing) =====
@@ -1650,6 +1841,20 @@
                     }
                 }
 
+                // Combos
+                for (let i = 0; i < COMBO_SLOT_COUNT; i++) {
+                    await sendFR([CMD.GET_COMBO, i]); resp = await recvFR();
+                    if (resp[1] === RESP.OK) {
+                        const ct = { trigMod: resp[2], trigKey: resp[3], steps: [] };
+                        const sc = Math.min(resp[4], COMBO_STEP_LIMIT);
+                        for (let s = 0; s < sc; s++) {
+                            ct.steps.push({ action: resp[5 + s*3], mod: resp[6 + s*3], key: resp[7 + s*3] });
+                        }
+                        comboData[i] = ct;
+                        comboDataOrig[i] = { trigMod: ct.trigMod, trigKey: ct.trigKey, steps: ct.steps.map(st => ({...st})) };
+                    }
+                }
+
                 updateAllSvgLabels();
                 for (let i = 0; i < keyCount; i++) updateKeyModified(i);
                 if (selectedKey >= 0) selectKey(selectedKey);
@@ -1699,6 +1904,22 @@
                         else log(`Key ${i} マクロ書込エラー`, 'error');
                     }
                 }
+                // Combos
+                for (let i = 0; i < COMBO_SLOT_COUNT; i++) {
+                    const cur = comboData[i];
+                    const orig = comboDataOrig[i];
+                    const changed = cur.trigMod !== orig.trigMod || cur.trigKey !== orig.trigKey || cur.steps.length !== orig.steps.length ||
+                        cur.steps.some((s, j) => s.action !== orig.steps[j]?.action || s.mod !== orig.steps[j]?.mod || s.key !== orig.steps[j]?.key);
+                    if (changed) {
+                        const payload = [CMD.SET_COMBO, i, cur.trigMod, cur.trigKey, cur.steps.length];
+                        for (const s of cur.steps) { payload.push(s.action, s.mod, s.key); }
+                        await sendFR(payload);
+                        const r = await recvFR();
+                        if (r[1] === RESP.OK) { comboDataOrig[i] = { trigMod: cur.trigMod, trigKey: cur.trigKey, steps: cur.steps.map(s => ({...s})) }; count++; }
+                        else log(`Combo ${i} 書込エラー`, 'error');
+                    }
+                }
+
                 if (count === 0) log('変更なし', 'info');
                 else log(`${count}件をRAMに書込`, 'success');
             } catch (e) { log(`書き込みエラー: ${e.message}`, 'error'); }

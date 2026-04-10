@@ -8,7 +8,7 @@
 #define FLASH_USER_START_ADDR   0x0801E000
 #define FLASH_PAGE_START        60
 #define FLASH_PAGE_COUNT        3
-#define FLASH_MAGIC_NUMBER      0xC00F0007  // v7: 70% JIS + macro action
+#define FLASH_MAGIC_NUMBER      0xC00F0008  // v8: 70% JIS + combo macros
 
 // デフォルト値
 #define DEFAULT_SENSITIVITY  50
@@ -132,6 +132,7 @@ static const uint16_t DEFAULT_KEYCODES[96] = {
 
 RapidTriggerKeyboard::RapidTriggerKeyboard() {
     flash_status = -1;
+    memset(combos, 0, sizeof(combos));
     init();
 }
 
@@ -372,6 +373,36 @@ const MacroStep* RapidTriggerKeyboard::getMacroSteps(int keyIndex) {
     return nullptr;
 }
 
+// ===== コンボマクロ =====
+void RapidTriggerKeyboard::setCombo(int index, uint8_t trigMod, uint8_t trigKey, uint8_t stepCount, const MacroStep* steps) {
+    if (index < 0 || index >= MAX_COMBOS) return;
+    combos[index].trigger_modifiers = trigMod;
+    combos[index].trigger_keycode = trigKey;
+    if (stepCount > MAX_COMBO_STEPS) stepCount = MAX_COMBO_STEPS;
+    combos[index].step_count = stepCount;
+    for (int s = 0; s < stepCount; s++) combos[index].steps[s] = steps[s];
+    for (int s = stepCount; s < MAX_COMBO_STEPS; s++) combos[index].steps[s] = {0, 0, 0};
+    // Reset runtime
+    combos[index].is_active = false;
+    combos[index].was_active = false;
+    combos[index].exec_step = 0;
+    combos[index].completed = false;
+    combos[index].held_modifiers = 0;
+    combos[index].held_count = 0;
+}
+uint8_t RapidTriggerKeyboard::getComboTriggerMod(int index) {
+    return (index >= 0 && index < MAX_COMBOS) ? combos[index].trigger_modifiers : 0;
+}
+uint8_t RapidTriggerKeyboard::getComboTriggerKey(int index) {
+    return (index >= 0 && index < MAX_COMBOS) ? combos[index].trigger_keycode : 0;
+}
+uint8_t RapidTriggerKeyboard::getComboStepCount(int index) {
+    return (index >= 0 && index < MAX_COMBOS) ? combos[index].step_count : 0;
+}
+const MacroStep* RapidTriggerKeyboard::getComboSteps(int index) {
+    return (index >= 0 && index < MAX_COMBOS) ? combos[index].steps : nullptr;
+}
+
 int RapidTriggerKeyboard::getMappedKeyIndex(int source, int muxIndex) {
     if (source < 0 || source >= SOURCE_COUNT || muxIndex < 0 || muxIndex >= MUX_CH_COUNT) {
         return -1;
@@ -542,8 +573,37 @@ void RapidTriggerKeyboard::saveToFlash() {
         address += 8;
     }
 
+    // ===== Combo data (8 combos x 5 DW) =====
+    for (int c = 0; c < MAX_COMBOS; c++) {
+        // DW1: header (trigger_mod + trigger_key + step_count + pad)
+        uint64_t hdr = (uint64_t)combos[c].trigger_modifiers |
+                       ((uint64_t)combos[c].trigger_keycode << 8) |
+                       ((uint64_t)combos[c].step_count << 16);
+        if (HAL_FLASH_Program(FLASH_TYPEPROGRAM_DOUBLEWORD, address, hdr) != HAL_OK) {
+            flash_status = 3; HAL_FLASH_Lock(); return;
+        }
+        address += 8;
+        // DW2-DW5: steps (2 per DW)
+        for (int dw = 0; dw < 4; dw++) {
+            uint64_t val = 0;
+            for (int s = 0; s < 2; s++) {
+                int si = dw * 2 + s;
+                if (si < MAX_COMBO_STEPS) {
+                    int base = s * 24;
+                    val |= ((uint64_t)combos[c].steps[si].action    << base);
+                    val |= ((uint64_t)combos[c].steps[si].modifiers << (base + 8));
+                    val |= ((uint64_t)combos[c].steps[si].keycode   << (base + 16));
+                }
+            }
+            if (HAL_FLASH_Program(FLASH_TYPEPROGRAM_DOUBLEWORD, address, val) != HAL_OK) {
+                flash_status = 3; HAL_FLASH_Lock(); return;
+            }
+            address += 8;
+        }
+    }
+
     HAL_FLASH_Lock();
-    printf("[FLASH] Saved %d keys\r\n", TOTAL_KEY_COUNT);
+    printf("[FLASH] Saved %d keys + %d combos\r\n", TOTAL_KEY_COUNT, MAX_COMBOS);
 }
 
 void RapidTriggerKeyboard::loadFromFlash() {
@@ -634,7 +694,32 @@ void RapidTriggerKeyboard::loadFromFlash() {
         address += 8;
     }
 
-    printf("[FLASH] Loaded %d keys\r\n", TOTAL_KEY_COUNT);
+    // ===== Combo data =====
+    for (int c = 0; c < MAX_COMBOS; c++) {
+        uint64_t hdr = *(__IO uint64_t*)address;
+        combos[c].trigger_modifiers = hdr & 0xFF;
+        combos[c].trigger_keycode = (hdr >> 8) & 0xFF;
+        combos[c].step_count = (hdr >> 16) & 0xFF;
+        if (combos[c].step_count > MAX_COMBO_STEPS) combos[c].step_count = 0;
+        address += 8;
+        for (int dw = 0; dw < 4; dw++) {
+            uint64_t val = *(__IO uint64_t*)address;
+            for (int s = 0; s < 2; s++) {
+                int si = dw * 2 + s;
+                if (si < MAX_COMBO_STEPS) {
+                    int base = s * 24;
+                    combos[c].steps[si].action    = (val >> base) & 0xFF;
+                    combos[c].steps[si].modifiers = (val >> (base + 8)) & 0xFF;
+                    combos[c].steps[si].keycode   = (val >> (base + 16)) & 0xFF;
+                }
+            }
+            address += 8;
+        }
+        combos[c].is_active = false;
+        combos[c].was_active = false;
+    }
+
+    printf("[FLASH] Loaded %d keys + %d combos\r\n", TOTAL_KEY_COUNT, MAX_COMBOS);
 }
 
 void RapidTriggerKeyboard::resetDefaults() {
@@ -656,6 +741,15 @@ void RapidTriggerKeyboard::resetDefaults() {
     ledConfig.mode = DEFAULT_LED_MODE;
     ledConfig.brightness = DEFAULT_LED_BRIGHT;
     ledConfig.speed = DEFAULT_LED_SPEED;
+    // コンボクリア
+    for (int c = 0; c < MAX_COMBOS; c++) {
+        combos[c].trigger_modifiers = 0;
+        combos[c].trigger_keycode = 0;
+        combos[c].step_count = 0;
+        memset(combos[c].steps, 0, sizeof(combos[c].steps));
+        combos[c].is_active = false;
+        combos[c].was_active = false;
+    }
     flash_status = 0;
 }
 
@@ -849,6 +943,130 @@ KeyboardReport* RapidTriggerKeyboard::getReport() {
                     // 標準キーボードキー
                     applyKeyToReport(report, (uint8_t)code);
                 }
+            }
+        }
+    }
+
+    // ===== コンボマクロ処理 =====
+    // 物理的に押されている修飾キーを取得
+    uint8_t physicalModifiers = 0;
+    for (int i = 0; i < TOTAL_KEY_COUNT; i++) {
+        if (keyStates[i].is_active) {
+            uint16_t kc = keyStates[i].keycode;
+            if (kc >= 0xE0 && kc <= 0xE7) {
+                physicalModifiers |= (1 << (kc - 0xE0));
+            }
+        }
+    }
+
+    for (int c = 0; c < MAX_COMBOS; c++) {
+        ComboMacro& combo = combos[c];
+        if (combo.step_count == 0) continue;
+
+        // トリガー判定
+        bool triggerActive = true;
+        // 修飾キーチェック
+        if (combo.trigger_modifiers != 0 &&
+            (physicalModifiers & combo.trigger_modifiers) != combo.trigger_modifiers) {
+            triggerActive = false;
+        }
+        // 通常キーチェック
+        if (triggerActive && combo.trigger_keycode > 0) {
+            bool found = false;
+            for (int i = 0; i < TOTAL_KEY_COUNT; i++) {
+                if (keyStates[i].keycode == combo.trigger_keycode && keyStates[i].is_active) {
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) triggerActive = false;
+        }
+
+        combo.is_active = triggerActive;
+
+        // 状態遷移
+        if (combo.is_active && !combo.was_active) {
+            combo.exec_step = 0;
+            combo.exec_pressing = true;
+            combo.exec_tick = now;
+            combo.completed = false;
+            combo.held_modifiers = 0;
+            combo.held_count = 0;
+            memset(combo.held_keys, 0, sizeof(combo.held_keys));
+        }
+        if (!combo.is_active && combo.was_active) {
+            combo.exec_step = combo.step_count;
+            combo.completed = false;
+            combo.held_modifiers = 0;
+            combo.held_count = 0;
+        }
+        combo.was_active = combo.is_active;
+
+        if (combo.is_active) {
+            // トリガーキーをレポートから除去
+            report.MODIFIER &= ~combo.trigger_modifiers;
+            if (combo.trigger_keycode > 0 && combo.trigger_keycode < 140) {
+                report.KEYS[combo.trigger_keycode / 8] &= ~(1 << (combo.trigger_keycode % 8));
+            }
+
+            // ステップ実行
+            if (combo.exec_step < combo.step_count && !combo.completed) {
+                if (combo.exec_pressing) {
+                    MacroStep& step = combo.steps[combo.exec_step];
+                    if (step.action == MACRO_ACTION_PRESS) {
+                        combo.held_modifiers |= step.modifiers;
+                        if (step.keycode > 0 && combo.held_count < 6) {
+                            combo.held_keys[combo.held_count++] = step.keycode;
+                        }
+                    } else if (step.action == MACRO_ACTION_RELEASE) {
+                        combo.held_modifiers &= ~step.modifiers;
+                        for (int k = 0; k < combo.held_count; k++) {
+                            if (combo.held_keys[k] == step.keycode) {
+                                for (int j = k; j < combo.held_count - 1; j++)
+                                    combo.held_keys[j] = combo.held_keys[j+1];
+                                combo.held_count--;
+                                combo.held_keys[combo.held_count] = 0;
+                                break;
+                            }
+                        }
+                    }
+                    if ((now - combo.exec_tick) >= MACRO_PRESS_MS) {
+                        combo.exec_pressing = false;
+                        combo.exec_tick = now;
+                    }
+                } else {
+                    if ((now - combo.exec_tick) >= MACRO_RELEASE_MS) {
+                        combo.exec_step++;
+                        if (combo.exec_step < combo.step_count) {
+                            combo.exec_pressing = true;
+                            combo.exec_tick = now;
+                        } else {
+                            // 完了: ループ or ホールド判定
+                            bool hasRelease = false;
+                            for (int s = 0; s < combo.step_count; s++) {
+                                if (combo.steps[s].action == MACRO_ACTION_RELEASE) {
+                                    hasRelease = true; break;
+                                }
+                            }
+                            if (hasRelease) {
+                                combo.exec_step = 0;
+                                combo.exec_pressing = true;
+                                combo.exec_tick = now;
+                                combo.held_modifiers = 0;
+                                combo.held_count = 0;
+                                memset(combo.held_keys, 0, sizeof(combo.held_keys));
+                            } else {
+                                combo.completed = true;
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 保持キーをレポートに反映
+            report.MODIFIER |= combo.held_modifiers;
+            for (int k = 0; k < combo.held_count; k++) {
+                applyKeyToReport(report, combo.held_keys[k]);
             }
         }
     }
