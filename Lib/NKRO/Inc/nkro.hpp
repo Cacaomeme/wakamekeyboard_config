@@ -76,6 +76,29 @@ struct RapidTriggerState {
     uint8_t macro_held_count;    // 保持中キー数
 };
 
+// コンボマクロ
+#define MAX_COMBOS 8
+#define MAX_COMBO_STEPS 8
+
+struct ComboMacro {
+    // 設定 (保存対象)
+    uint8_t trigger_modifiers;  // トリガー修飾キービットマスク
+    uint8_t trigger_keycode;    // トリガー通常キー (0=修飾キーのみ)
+    uint8_t step_count;
+    MacroStep steps[MAX_COMBO_STEPS];
+
+    // ランタイム状態
+    bool is_active;
+    bool was_active;
+    uint8_t exec_step;
+    bool exec_pressing;
+    uint32_t exec_tick;
+    bool completed;
+    uint8_t held_modifiers;
+    uint8_t held_keys[6];
+    uint8_t held_count;
+};
+
 class RapidTriggerKeyboard {
 public:
     static const int MUX_CH_COUNT = 16;
@@ -105,6 +128,13 @@ public:
     uint8_t getMacroStepCount(int keyIndex);
     const MacroStep* getMacroSteps(int keyIndex);
 
+    // コンボマクロ
+    void setCombo(int index, uint8_t trigMod, uint8_t trigKey, uint8_t stepCount, const MacroStep* steps);
+    uint8_t getComboTriggerMod(int index);
+    uint8_t getComboTriggerKey(int index);
+    uint8_t getComboStepCount(int index);
+    const MacroStep* getComboSteps(int index);
+
     // デバッグ参照
     int getMappedKeyIndex(int source, int muxIndex);
     bool isKeyActive(int keyIndex);
@@ -123,15 +153,15 @@ public:
 
     // レポート生成
     KeyboardReport* getReport();
-    uint16_t getConsumerKey();  // アクティブなConsumerキーのUsage ID (0=なし)
+    uint16_t getConsumerKey();
 
 private:
-    // [Source][MuxIndex] -> StateIndex (-1 if unused)
     int keyMapping[SOURCE_COUNT][MUX_CH_COUNT];
 
     RapidTriggerState keyStates[TOTAL_KEY_COUNT];
+    ComboMacro combos[MAX_COMBOS];
     KeyboardReport report;
-    uint16_t activeConsumerKey;  // 現在押されているConsumerキーのUsage ID
+    uint16_t activeConsumerKey;
 
     void updateRapidTriggerState(RapidTriggerState& state, uint32_t currentVal);
 };
