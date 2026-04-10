@@ -8,7 +8,7 @@
 #define FLASH_USER_START_ADDR   0x0801E000
 #define FLASH_PAGE_START        60
 #define FLASH_PAGE_COUNT        3
-#define FLASH_MAGIC_NUMBER      0xC00F0006  // v6: 70% JIS keyboard
+#define FLASH_MAGIC_NUMBER      0xC00F0007  // v7: 70% JIS + macro action
 
 // デフォルト値
 #define DEFAULT_SENSITIVITY  50
@@ -170,6 +170,10 @@ void RapidTriggerKeyboard::init() {
         keyStates[keyCounter].macro_exec_step = 0;
         keyStates[keyCounter].macro_exec_pressing = false;
         keyStates[keyCounter].macro_exec_tick = 0;
+        keyStates[keyCounter].macro_completed = false;
+        keyStates[keyCounter].macro_held_modifiers = 0;
+        memset(keyStates[keyCounter].macro_held_keys, 0, sizeof(keyStates[keyCounter].macro_held_keys));
+        keyStates[keyCounter].macro_held_count = 0;
 
         keyCounter++;
     };
@@ -349,7 +353,7 @@ void RapidTriggerKeyboard::setMacro(int keyIndex, uint8_t stepCount, const Macro
             keyStates[keyIndex].macro_steps[s] = steps[s];
         }
         for (int s = stepCount; s < MAX_MACRO_STEPS; s++) {
-            keyStates[keyIndex].macro_steps[s] = {0, 0};
+            keyStates[keyIndex].macro_steps[s] = {0, 0, 0};
         }
     }
 }
@@ -472,11 +476,13 @@ void RapidTriggerKeyboard::saveToFlash() {
         }
         address += 8;
 
-        // DW3: macro steps[0-3] + step_count
+        // DW3: macro step_count(8) + step[0](24) + step[1](24) = 56 bits
         uint64_t macro_dw3 = (uint64_t)keyStates[i].macro_step_count;
-        for (int s = 0; s < 4 && s < MAX_MACRO_STEPS; s++) {
-            macro_dw3 |= ((uint64_t)keyStates[i].macro_steps[s].modifiers << (8 + s*16));
-            macro_dw3 |= ((uint64_t)keyStates[i].macro_steps[s].keycode   << (16 + s*16));
+        for (int s = 0; s < 2 && s < MAX_MACRO_STEPS; s++) {
+            int base = 8 + s * 24;
+            macro_dw3 |= ((uint64_t)keyStates[i].macro_steps[s].action    << base);
+            macro_dw3 |= ((uint64_t)keyStates[i].macro_steps[s].modifiers << (base + 8));
+            macro_dw3 |= ((uint64_t)keyStates[i].macro_steps[s].keycode   << (base + 16));
         }
         if (HAL_FLASH_Program(FLASH_TYPEPROGRAM_DOUBLEWORD, address, macro_dw3) != HAL_OK) {
             flash_status = 3; flash_error_code = HAL_FLASH_GetError();
@@ -484,16 +490,52 @@ void RapidTriggerKeyboard::saveToFlash() {
         }
         address += 8;
 
-        // DW4: macro steps[4-7]
+        // DW4: step[2](24) + step[3](24) = 48 bits
         uint64_t macro_dw4 = 0;
-        for (int s = 0; s < 4; s++) {
-            int si = s + 4;
+        for (int s = 0; s < 2; s++) {
+            int si = s + 2;
             if (si < MAX_MACRO_STEPS) {
-                macro_dw4 |= ((uint64_t)keyStates[i].macro_steps[si].modifiers << (s*16));
-                macro_dw4 |= ((uint64_t)keyStates[i].macro_steps[si].keycode   << (8 + s*16));
+                int base = s * 24;
+                macro_dw4 |= ((uint64_t)keyStates[i].macro_steps[si].action    << base);
+                macro_dw4 |= ((uint64_t)keyStates[i].macro_steps[si].modifiers << (base + 8));
+                macro_dw4 |= ((uint64_t)keyStates[i].macro_steps[si].keycode   << (base + 16));
             }
         }
         if (HAL_FLASH_Program(FLASH_TYPEPROGRAM_DOUBLEWORD, address, macro_dw4) != HAL_OK) {
+            flash_status = 3; flash_error_code = HAL_FLASH_GetError();
+            flash_debug_val = (uint32_t)i; HAL_FLASH_Lock(); return;
+        }
+        address += 8;
+
+        // DW5: step[4](24) + step[5](24) = 48 bits
+        uint64_t macro_dw5 = 0;
+        for (int s = 0; s < 2; s++) {
+            int si = s + 4;
+            if (si < MAX_MACRO_STEPS) {
+                int base = s * 24;
+                macro_dw5 |= ((uint64_t)keyStates[i].macro_steps[si].action    << base);
+                macro_dw5 |= ((uint64_t)keyStates[i].macro_steps[si].modifiers << (base + 8));
+                macro_dw5 |= ((uint64_t)keyStates[i].macro_steps[si].keycode   << (base + 16));
+            }
+        }
+        if (HAL_FLASH_Program(FLASH_TYPEPROGRAM_DOUBLEWORD, address, macro_dw5) != HAL_OK) {
+            flash_status = 3; flash_error_code = HAL_FLASH_GetError();
+            flash_debug_val = (uint32_t)i; HAL_FLASH_Lock(); return;
+        }
+        address += 8;
+
+        // DW6: step[6](24) + step[7](24) = 48 bits
+        uint64_t macro_dw6 = 0;
+        for (int s = 0; s < 2; s++) {
+            int si = s + 6;
+            if (si < MAX_MACRO_STEPS) {
+                int base = s * 24;
+                macro_dw6 |= ((uint64_t)keyStates[i].macro_steps[si].action    << base);
+                macro_dw6 |= ((uint64_t)keyStates[i].macro_steps[si].modifiers << (base + 8));
+                macro_dw6 |= ((uint64_t)keyStates[i].macro_steps[si].keycode   << (base + 16));
+            }
+        }
+        if (HAL_FLASH_Program(FLASH_TYPEPROGRAM_DOUBLEWORD, address, macro_dw6) != HAL_OK) {
             flash_status = 3; flash_error_code = HAL_FLASH_GetError();
             flash_debug_val = (uint32_t)i; HAL_FLASH_Lock(); return;
         }
@@ -538,25 +580,55 @@ void RapidTriggerKeyboard::loadFromFlash() {
         if (kc <= 0xFFFF) keyStates[i].keycode = (uint16_t)kc;
         address += 8;
 
-        // DW3: macro steps[0-3] + step_count
+        // DW3: macro step_count(8) + step[0-1]
         uint64_t macro_dw3 = *(__IO uint64_t*)address;
         uint8_t sc = macro_dw3 & 0xFF;
         if (sc <= MAX_MACRO_STEPS) {
             keyStates[i].macro_step_count = sc;
-            for (int s = 0; s < 4 && s < MAX_MACRO_STEPS; s++) {
-                keyStates[i].macro_steps[s].modifiers = (macro_dw3 >> (8 + s*16)) & 0xFF;
-                keyStates[i].macro_steps[s].keycode   = (macro_dw3 >> (16 + s*16)) & 0xFF;
+            for (int s = 0; s < 2 && s < MAX_MACRO_STEPS; s++) {
+                int base = 8 + s * 24;
+                keyStates[i].macro_steps[s].action    = (macro_dw3 >> base) & 0xFF;
+                keyStates[i].macro_steps[s].modifiers = (macro_dw3 >> (base + 8)) & 0xFF;
+                keyStates[i].macro_steps[s].keycode   = (macro_dw3 >> (base + 16)) & 0xFF;
             }
         }
         address += 8;
 
-        // DW4: macro steps[4-7]
+        // DW4: step[2-3]
         uint64_t macro_dw4 = *(__IO uint64_t*)address;
-        for (int s = 0; s < 4; s++) {
+        for (int s = 0; s < 2; s++) {
+            int si = s + 2;
+            if (si < MAX_MACRO_STEPS) {
+                int base = s * 24;
+                keyStates[i].macro_steps[si].action    = (macro_dw4 >> base) & 0xFF;
+                keyStates[i].macro_steps[si].modifiers = (macro_dw4 >> (base + 8)) & 0xFF;
+                keyStates[i].macro_steps[si].keycode   = (macro_dw4 >> (base + 16)) & 0xFF;
+            }
+        }
+        address += 8;
+
+        // DW5: step[4-5]
+        uint64_t macro_dw5 = *(__IO uint64_t*)address;
+        for (int s = 0; s < 2; s++) {
             int si = s + 4;
             if (si < MAX_MACRO_STEPS) {
-                keyStates[i].macro_steps[si].modifiers = (macro_dw4 >> (s*16)) & 0xFF;
-                keyStates[i].macro_steps[si].keycode   = (macro_dw4 >> (8 + s*16)) & 0xFF;
+                int base = s * 24;
+                keyStates[i].macro_steps[si].action    = (macro_dw5 >> base) & 0xFF;
+                keyStates[i].macro_steps[si].modifiers = (macro_dw5 >> (base + 8)) & 0xFF;
+                keyStates[i].macro_steps[si].keycode   = (macro_dw5 >> (base + 16)) & 0xFF;
+            }
+        }
+        address += 8;
+
+        // DW6: step[6-7]
+        uint64_t macro_dw6 = *(__IO uint64_t*)address;
+        for (int s = 0; s < 2; s++) {
+            int si = s + 6;
+            if (si < MAX_MACRO_STEPS) {
+                int base = s * 24;
+                keyStates[i].macro_steps[si].action    = (macro_dw6 >> base) & 0xFF;
+                keyStates[i].macro_steps[si].modifiers = (macro_dw6 >> (base + 8)) & 0xFF;
+                keyStates[i].macro_steps[si].keycode   = (macro_dw6 >> (base + 16)) & 0xFF;
             }
         }
         address += 8;
@@ -674,21 +746,54 @@ KeyboardReport* RapidTriggerKeyboard::getReport() {
 
         if (ks.macro_step_count > 0) {
             // === マクロシーケンス実行 ===
+
+            // 押し始め: シーケンス開始
             if (ks.is_active && !ks.was_active) {
                 ks.macro_exec_step = 0;
                 ks.macro_exec_pressing = true;
                 ks.macro_exec_tick = now;
+                ks.macro_completed = false;
+                ks.macro_held_modifiers = 0;
+                ks.macro_held_count = 0;
+                memset(ks.macro_held_keys, 0, sizeof(ks.macro_held_keys));
             }
+
+            // 離した: 保持状態をクリア
             if (!ks.is_active && ks.was_active) {
-                ks.macro_exec_step = ks.macro_step_count;
+                ks.macro_exec_step = ks.macro_step_count; // ステップ実行停止
+                ks.macro_completed = false;
+                ks.macro_held_modifiers = 0;
+                ks.macro_held_count = 0;
             }
             ks.was_active = ks.is_active;
 
-            if (ks.macro_exec_step < ks.macro_step_count) {
+            // ステップ実行中
+            if (ks.macro_exec_step < ks.macro_step_count && !ks.macro_completed) {
                 if (ks.macro_exec_pressing) {
                     MacroStep& step = ks.macro_steps[ks.macro_exec_step];
-                    report.MODIFIER |= step.modifiers;
-                    applyKeyToReport(report, step.keycode);
+
+                    if (step.action == MACRO_ACTION_PRESS) {
+                        // PRESS: キーを保持リストに追加
+                        ks.macro_held_modifiers |= step.modifiers;
+                        if (step.keycode > 0 && ks.macro_held_count < 6) {
+                            ks.macro_held_keys[ks.macro_held_count++] = step.keycode;
+                        }
+                    } else if (step.action == MACRO_ACTION_RELEASE) {
+                        // RELEASE: 指定キーを保持リストから削除
+                        ks.macro_held_modifiers &= ~step.modifiers;
+                        for (int k = 0; k < ks.macro_held_count; k++) {
+                            if (ks.macro_held_keys[k] == step.keycode) {
+                                // 削除: 後ろを詰める
+                                for (int j = k; j < ks.macro_held_count - 1; j++) {
+                                    ks.macro_held_keys[j] = ks.macro_held_keys[j+1];
+                                }
+                                ks.macro_held_count--;
+                                ks.macro_held_keys[ks.macro_held_count] = 0;
+                                break;
+                            }
+                        }
+                    }
+
                     if ((now - ks.macro_exec_tick) >= MACRO_PRESS_MS) {
                         ks.macro_exec_pressing = false;
                         ks.macro_exec_tick = now;
@@ -699,8 +804,38 @@ KeyboardReport* RapidTriggerKeyboard::getReport() {
                         if (ks.macro_exec_step < ks.macro_step_count) {
                             ks.macro_exec_pressing = true;
                             ks.macro_exec_tick = now;
+                        } else {
+                            // 全ステップ完了
+                            // RELEASEステップがあればループ、なければ保持
+                            bool hasRelease = false;
+                            for (int s = 0; s < ks.macro_step_count; s++) {
+                                if (ks.macro_steps[s].action == MACRO_ACTION_RELEASE) {
+                                    hasRelease = true;
+                                    break;
+                                }
+                            }
+                            if (hasRelease) {
+                                // ループ: ステップ0に戻る
+                                ks.macro_exec_step = 0;
+                                ks.macro_exec_pressing = true;
+                                ks.macro_exec_tick = now;
+                                ks.macro_held_modifiers = 0;
+                                ks.macro_held_count = 0;
+                                memset(ks.macro_held_keys, 0, sizeof(ks.macro_held_keys));
+                            } else {
+                                // 押しっぱなし: 保持状態を継続
+                                ks.macro_completed = true;
+                            }
                         }
                     }
+                }
+            }
+
+            // 保持中のキーをレポートに反映 (実行中 + 完了後も物理キーが押されている限り)
+            if (ks.is_active) {
+                report.MODIFIER |= ks.macro_held_modifiers;
+                for (int k = 0; k < ks.macro_held_count; k++) {
+                    applyKeyToReport(report, ks.macro_held_keys[k]);
                 }
             }
         } else {

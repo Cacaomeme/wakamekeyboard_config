@@ -325,9 +325,10 @@ extern "C" void ProcessFeatureReport(uint8_t* data, uint16_t len, uint8_t* respo
         uint8_t sc  = local[2];
         if (idx < keyboard.TOTAL_KEY_COUNT && sc <= MAX_MACRO_STEPS) {
             MacroStep steps[MAX_MACRO_STEPS] = {};
-            for (int s = 0; s < sc && (3 + s*2 + 1) < 32; s++) {
-                steps[s].modifiers = local[3 + s*2];
-                steps[s].keycode   = local[4 + s*2];
+            for (int s = 0; s < sc && (3 + s*3 + 2) < 32; s++) {
+                steps[s].action    = local[3 + s*3];
+                steps[s].modifiers = local[4 + s*3];
+                steps[s].keycode   = local[5 + s*3];
             }
             keyboard.setMacro(idx, sc, steps);
             response[1] = RESP_OK;
@@ -343,9 +344,10 @@ extern "C" void ProcessFeatureReport(uint8_t* data, uint16_t len, uint8_t* respo
             const MacroStep* steps = keyboard.getMacroSteps(idx);
             response[1] = RESP_OK;
             response[2] = sc;
-            for (int s = 0; s < sc && (3 + s*2 + 1) < 32; s++) {
-                response[3 + s*2] = steps[s].modifiers;
-                response[4 + s*2] = steps[s].keycode;
+            for (int s = 0; s < sc && (3 + s*3 + 2) < 32; s++) {
+                response[3 + s*3] = steps[s].action;
+                response[4 + s*3] = steps[s].modifiers;
+                response[5 + s*3] = steps[s].keycode;
             }
         } else {
             response[1] = RESP_INVALID_PARAM;
