@@ -600,10 +600,18 @@ extern "C" void loop()
             selectMuxChannel(ch);
             delay_us(5);  // MUXセトリング (5μs)
 
-            // 2サンプル平均 (ノイズ低減 + 高速)
-            uint32_t v1 = readADCFast(adc.hadc);
-            uint32_t v2 = readADCFast(adc.hadc);
-            uint32_t val = (v1 + v2) / 2;
+            // 3サンプル中央値フィルタ (スパイクノイズを完全除去)
+            uint32_t a = readADCFast(adc.hadc);
+            uint32_t b = readADCFast(adc.hadc);
+            uint32_t c = readADCFast(adc.hadc);
+            
+            // a,b,c をソートして中央値をbに残す
+            if (a > b) { uint32_t t = a; a = b; b = t; }
+            if (b > c) { uint32_t t = b; b = c; c = t; }
+            if (a > b) { uint32_t t = a; a = b; b = t; }
+            
+            uint32_t val = b;
+
             keyboard.updateKeyByMux(ch, src, val);
             mux_adc[ch][src] = val;
         }
@@ -640,33 +648,23 @@ extern "C" void loop()
         }
     }
 
-    // デバッグ出力 (500msに1回, USB未接続でも出力)
+    // デバッグ出力 (10msに1回, 4キー専用高速デバッグ)
     static uint32_t last_print = 0;
-    if (HAL_GetTick() - last_print > 500) {
+    if (HAL_GetTick() - last_print > 10) {
         last_print = HAL_GetTick();
 
-        printf("Sens:%lu LED:%lu Scan:%luus | USB:%s Keys:%d\r\n",
-               keyboard.getSensitivity(0), (uint32_t)led_brightness,
-               (unsigned long)scan_us,
-               (hUsbDeviceFS.dev_state == USBD_STATE_CONFIGURED) ? "ON" : "OFF",
-               RapidTriggerKeyboard::TOTAL_KEY_COUNT);
-
-        // ON状態のキーのみ表示
-        bool any_active = false;
-        for (int k = 0; k < RapidTriggerKeyboard::TOTAL_KEY_COUNT; k++) {
-            if (keyboard.isKeyActive(k)) {
-                uint16_t code = keyboard.getKeycode(k);
-                if (IS_CONSUMER_KEY(code)) {
-                    printf("  [ON] Media(%04X)\r\n", code);
-                } else {
-                    printf("  [ON] %s(%02X)\r\n", hidCodeToName((uint8_t)code), (uint8_t)code);
-                }
-                any_active = true;
-            }
-        }
-        if (!any_active) {
-            printf("  All keys OFF\r\n");
-        }
+        // 4キー: idx26, src=1, mux=11
+        int idx = 26;
+        int src = 1;
+        int mux = 11;
+        uint32_t raw = mux_adc[mux][src];
+        uint32_t base = keyboard.getCalibBase(idx);
+        uint32_t lo = keyboard.getLowPeak(idx);
+        uint32_t hi = keyboard.getHighPeak(idx);
+        bool active = keyboard.isKeyActive(idx);
+        
+        //printf("4: ADC=%4lu Base=%4lu Lo=%4lu Hi=%4lu Diff=%+4ld %s\r\n",
+        //       raw, base, lo, hi, (long)((int32_t)raw - (int32_t)base), active ? "ON" : "off");
     }
 }
 

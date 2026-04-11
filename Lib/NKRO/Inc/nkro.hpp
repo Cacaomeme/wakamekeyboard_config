@@ -138,6 +138,9 @@ public:
     // デバッグ参照
     int getMappedKeyIndex(int source, int muxIndex);
     bool isKeyActive(int keyIndex);
+    uint32_t getCalibBase(int keyIndex);
+    uint32_t getLowPeak(int keyIndex);
+    uint32_t getHighPeak(int keyIndex);
 
     // LED設定
     LedConfig ledConfig;
