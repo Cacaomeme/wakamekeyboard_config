@@ -18,116 +18,13 @@
 #define DEFAULT_LED_SPEED    50
 #define INITIAL_CALIBRATION_SAMPLES 16
 
-// デフォルトキーコード (6 source × 16 ch = 96 entries, NC=0x00)
-// 0x0000-0x00E7 = 標準キーボード, 0x8xxx = Consumer Control
-static const uint16_t DEFAULT_KEYCODES[96] = {
-    // Source 0: PB0 (ADC1_IN15) MUX 0-15: 16 keys (all connected)
-    0x39, // 0:  CapsLock
-    0xE1, // 1:  Left Shift
-    0xE0, // 2:  Left Ctrl
-    0xE3, // 3:  Left Win (GUI)
-    0x04, // 4:  A
-    0xE2, // 5:  Left Alt
-    0x1D, // 6:  Z
-    0x16, // 7:  S
-    0x1A, // 8:  W
-    0x1F, // 9:  2
-    0x3A, // 10: F1
-    0x1E, // 11: 1
-    0x14, // 12: Q
-    0x29, // 13: Esc
-    0x35, // 14: 半角全角 (Grave)
-    0x2B, // 15: Tab
-
-    // Source 1: PA7 (ADC2_IN4) MUX 0-15: 15 connected, 1 NC
-    0x07, // 16: D
-    0x1B, // 17: X
-    0x8B, // 18: 無変換 (Muhenkan/International5)
-    0x06, // 19: C
-    0x2C, // 20: L_Space
-    0x09, // 21: F
-    0x19, // 22: V
-    0x00, // 23: NC
-    0x22, // 24: 5
-    0x3D, // 25: F4
-    0x3C, // 26: F3
-    0x21, // 27: 4
-    0x15, // 28: R
-    0x3B, // 29: F2
-    0x20, // 30: 3
-    0x08, // 31: E
-
-    // Source 2: PA6 (ADC2_IN3) MUX 0-15: 9 connected, 7 NC
-    0x0A, // 32: G
-    0x00, // 33: NC
-    0x00, // 34: NC
-    0x05, // 35: B
-    0x00, // 36: NC
-    0x00, // 37: NC
-    0x00, // 38: NC
-    0x0B, // 39: H
-    0x24, // 40: 7
-    0x1C, // 41: Y
-    0x3F, // 42: F6
-    0x00, // 43: NC
-    0x23, // 44: 6
-    0x00, // 45: NC
-    0x3E, // 46: F5
-    0x17, // 47: T
-
-    // Source 3: PA1 (ADC1_IN2) MUX 0-15: 16 keys (all connected)
-    0x28, // 48: Enter
-    0x2A, // 49: BackSpace
-    0x4C, // 50: Delete
-    0x89, // 51: ￥ (Yen/International3)
-    0x45, // 52: F12
-    0x30, // 53: [ (「)
-    0x2E, // 54: ^ (Equal position)
-    0x44, // 55: F11
-    0x34, // 56: : (Apostrophe position)
-    0x87, // 57: \\ (Ro/International1)
-    0x50, // 58: ←
-    0x51, // 59: ↓
-    0x52, // 60: ↑
-    0x32, // 61: ] (」/Non-US Hash)
-    0x4F, // 62: →
-    0x00, // 63: User Key (unassigned)
-
-    // Source 4: PA0 (ADC1_IN1) MUX 0-15: 16 keys (all connected)
-    0x2F, // 64: @ (Left Bracket position)
-    0x13, // 65: P
-    0x2D, // 66: -
-    0x43, // 67: F10
-    0x27, // 68: 0
-    0x42, // 69: F9
-    0x26, // 70: 9
-    0x12, // 71: O
-    0x0F, // 72: L
-    0x36, // 73: , (Comma)
-    0x8A, // 74: 変換 (Henkan/International4)
-    0x88, // 75: かな (Kana/International2)
-    0x37, // 76: . (Period)
-    0xE6, // 77: Right Alt
-    0x38, // 78: / (Slash)
-    0x33, // 79: ; (Semicolon)
-
-    // Source 5: PF1 (ADC2_IN10) MUX 0-15: 10 connected, 6 NC
-    0x0C, // 80: I
-    0x41, // 81: F8
-    0x25, // 82: 8
-    0x40, // 83: F7
-    0x00, // 84: NC
-    0x18, // 85: U
-    0x00, // 86: NC
-    0x00, // 87: NC
-    0x00, // 88: NC
-    0x00, // 89: NC
-    0x00, // 90: NC
-    0x0D, // 91: J
-    0x11, // 92: N
-    0x2C, // 93: R_Space
-    0x10, // 94: M
-    0x0E, // 95: K
+static const uint16_t DEFAULT_KEYCODES[RapidTriggerKeyboard::TOTAL_KEY_COUNT] = {
+    0x39, 0xE1, 0xE0, 0xE3, 0x04, 0xE2, 0x1D, 0x16, 0x1A, 0x1F, 0x3A, 0x1E, 0x14, 0x29, 0x35, 0x2B, // Src 0 (16)
+    0x07, 0x1B, 0x8B, 0x06, 0x2C, 0x09, 0x19, 0x22, 0x3D, 0x3C, 0x21, 0x15, 0x3B, 0x20, 0x08,       // Src 1 (15)
+    0x0A, 0x05, 0x0B, 0x24, 0x1C, 0x3F, 0x23, 0x3E, 0x17,                                           // Src 2 (9)
+    0x28, 0x2A, 0x4C, 0x89, 0x45, 0x30, 0x2E, 0x44, 0x34, 0x87, 0x50, 0x51, 0x52, 0x32, 0x4F, 0x00, // Src 3 (16)
+    0x2F, 0x13, 0x2D, 0x43, 0x27, 0x42, 0x26, 0x12, 0x0F, 0x36, 0x8A, 0x88, 0x37, 0xE6, 0x38, 0x33, // Src 4 (16)
+    0x0C, 0x41, 0x25, 0x40, 0x18, 0x0D, 0x11, 0x2C, 0x10, 0x0E                                      // Src 5 (10)
 };
 
 RapidTriggerKeyboard::RapidTriggerKeyboard() {
@@ -415,6 +312,21 @@ bool RapidTriggerKeyboard::isKeyActive(int keyIndex) {
         return false;
     }
     return keyStates[keyIndex].is_active;
+}
+
+uint32_t RapidTriggerKeyboard::getCalibBase(int keyIndex) {
+    if (keyIndex < 0 || keyIndex >= TOTAL_KEY_COUNT) return 0;
+    return keyStates[keyIndex].baseline;
+}
+
+uint32_t RapidTriggerKeyboard::getLowPeak(int keyIndex) {
+    if (keyIndex < 0 || keyIndex >= TOTAL_KEY_COUNT) return 0;
+    return keyStates[keyIndex].low_peak;
+}
+
+uint32_t RapidTriggerKeyboard::getHighPeak(int keyIndex) {
+    if (keyIndex < 0 || keyIndex >= TOTAL_KEY_COUNT) return 0;
+    return keyStates[keyIndex].high_peak;
 }
 
 // ===== Flash 保存 / 読み込み =====
@@ -755,7 +667,20 @@ void RapidTriggerKeyboard::resetDefaults() {
 
 void RapidTriggerKeyboard::updateRapidTriggerState(RapidTriggerState& state, uint32_t currentVal) {
     if (!state.calibrated) {
-        if (state.calibration_samples == 0) {
+        // Phase 1: 最初の16サンプルは捨てる (ADC/MUXセトリング待ち)
+        // Phase 2: 次の16サンプルで平均 → ベースライン
+        const uint16_t DISCARD_SAMPLES = 16;
+        const uint16_t CALIB_SAMPLES = INITIAL_CALIBRATION_SAMPLES; // 16
+
+        if (state.calibration_samples < DISCARD_SAMPLES) {
+            // 捨てるフェーズ: カウントだけ進める
+            state.calibration_samples++;
+            return;
+        }
+
+        // 蓄積フェーズ
+        uint16_t real_idx = state.calibration_samples - DISCARD_SAMPLES;
+        if (real_idx == 0) {
             state.low_peak = currentVal;
             state.high_peak = currentVal;
             state.calibration_sum = 0;
@@ -767,10 +692,14 @@ void RapidTriggerKeyboard::updateRapidTriggerState(RapidTriggerState& state, uin
         state.calibration_sum += currentVal;
         state.calibration_samples++;
 
-        if (state.calibration_samples >= INITIAL_CALIBRATION_SAMPLES) {
-            state.baseline = state.calibration_sum / state.calibration_samples;
+        if (real_idx + 1 >= CALIB_SAMPLES) {
+            state.baseline = state.calibration_sum / CALIB_SAMPLES;
             state.low_peak = state.baseline;
             state.high_peak = state.baseline;
+            
+            // 以降の追従のために、calibration_sum を高精度アキュムレータとして再利用 (係数1024)
+            state.calibration_sum = state.baseline * 1024;
+
             state.calibrated = true;
             state.is_active = false;
             state.was_active = false;
@@ -809,9 +738,10 @@ void RapidTriggerKeyboard::updateRapidTriggerState(RapidTriggerState& state, uin
             state.high_peak = currentVal;
             state.low_peak = currentVal;
 
-            // キーが完全にオフ(デッドゾーン以下)の時のみ、温度ドリフト等のためベースラインを追従
-            int32_t diff = (int32_t)currentVal - (int32_t)state.baseline;
-            state.baseline += (diff / 32);
+            // キーが完全にオフ(デッドゾーン以下)の時のみ、温度や電源変動などにベースラインを追従させる
+            // 整数丸めによる停止を防ぐため、1024倍精度のEMAフィルタを適用する
+            state.calibration_sum = state.calibration_sum - (state.calibration_sum / 1024) + currentVal;
+            state.baseline = state.calibration_sum / 1024;
         }
     }
 }
