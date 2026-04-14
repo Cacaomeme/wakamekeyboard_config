@@ -62,6 +62,7 @@ void RapidTriggerKeyboard::init() {
         keyStates[keyCounter].dead_zone = DEFAULT_DEAD_ZONE;
         keyStates[keyCounter].calibration_samples = 0;
         keyStates[keyCounter].calibration_sum = 0;
+        keyStates[keyCounter].on_debounce_count = 0;
         keyStates[keyCounter].macro_step_count = 0;
         memset(keyStates[keyCounter].macro_steps, 0, sizeof(keyStates[keyCounter].macro_steps));
         keyStates[keyCounter].was_active = false;
@@ -648,6 +649,7 @@ void RapidTriggerKeyboard::resetDefaults() {
         keyStates[i].calibrated = false;
         keyStates[i].calibration_samples = 0;
         keyStates[i].calibration_sum = 0;
+        keyStates[i].on_debounce_count = 0;
         keyStates[i].is_active = false;
     }
     ledConfig.mode = DEFAULT_LED_MODE;
@@ -703,6 +705,7 @@ void RapidTriggerKeyboard::updateRapidTriggerState(RapidTriggerState& state, uin
             state.calibrated = true;
             state.is_active = false;
             state.was_active = false;
+            state.on_debounce_count = 0;
         }
         return;
     }
@@ -721,6 +724,7 @@ void RapidTriggerKeyboard::updateRapidTriggerState(RapidTriggerState& state, uin
             state.is_active = false;
             state.low_peak = currentVal;
             state.high_peak = currentVal;
+            state.on_debounce_count = 0;
         } else if (currentVal > state.high_peak) {
             state.high_peak = currentVal;
         }
@@ -729,14 +733,21 @@ void RapidTriggerKeyboard::updateRapidTriggerState(RapidTriggerState& state, uin
         bool aboveBaseline = (currentVal > activation_floor);
 
         if (movedEnough && aboveBaseline) {
-            state.is_active = true;
-            state.high_peak = currentVal;
+            if (state.on_debounce_count < 0xFF) state.on_debounce_count++;
+            if (state.on_debounce_count >= 2) {
+                state.is_active = true;
+                state.high_peak = currentVal;
+                state.on_debounce_count = 0;
+            }
+        } else {
+            state.on_debounce_count = 0;
         }
 
         if (currentVal <= activation_floor) {
             state.is_active = false;
             state.high_peak = currentVal;
             state.low_peak = currentVal;
+            state.on_debounce_count = 0;
 
             // キーが完全にオフ(デッドゾーン以下)の時のみ、温度や電源変動などにベースラインを追従させる
             // 整数丸めによる停止を防ぐため、1024倍精度のEMAフィルタを適用する

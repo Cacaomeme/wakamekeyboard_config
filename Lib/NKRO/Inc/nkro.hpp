@@ -60,6 +60,7 @@ struct RapidTriggerState {
     // 初期キャリブレーション用 (ランタイムのみ)
     uint16_t calibration_samples;
     uint32_t calibration_sum;
+    uint8_t on_debounce_count;  // OFF->ON判定の連続成立カウント
 
     // マクロシーケンス
     uint8_t macro_step_count;

@@ -46,6 +46,9 @@ volatile uint8_t last_payload[4] = {0};
 #define RESP_ERROR           0x01
 #define RESP_INVALID_PARAM   0x02
 
+// 0 にすれば全て無効化できる
+#define DBG_CHATTER_TRACE 1
+
 // ===== ADCソース定義 =====
 // 6つのADCソース (各MUXの出力先)
 struct ADCSourceDef {
@@ -552,6 +555,81 @@ static inline uint32_t readADCFast(ADC_HandleTypeDef* hadc) {
     return inst->DR;
 }
 
+// ===== Chatter Debug (4/U専用) =====
+#if DBG_CHATTER_TRACE
+struct ChatterEvent {
+    uint32_t t_us;
+    const char* key_name;
+    uint8_t idx;
+    uint8_t src;
+    uint8_t mux;
+    uint16_t raw;
+    uint16_t base;
+    uint16_t lo;
+    uint16_t hi;
+    uint16_t floor;
+    uint16_t sens;
+    uint8_t active;
+    uint8_t reason; // 1:ON edge, 2:OFF edge, 3:raw jump
+};
+
+static ChatterEvent g_evt_q[128];
+static uint16_t g_evt_w = 0;
+static uint16_t g_evt_r = 0;
+
+static inline uint16_t sat_u16(uint32_t v) {
+    return (v > 65535U) ? 65535U : (uint16_t)v;
+}
+
+static inline uint32_t now_us_from_dwt() {
+    uint32_t div = (SystemCoreClock / 1000000U);
+    if (div == 0) return 0;
+    return DWT->CYCCNT / div;
+}
+
+static inline uint16_t q_next(uint16_t v) {
+    return (uint16_t)((v + 1U) & 127U);
+}
+
+static void push_chatter_event(const char* key_name, uint8_t idx, uint8_t src, uint8_t mux,
+                               uint32_t raw, uint32_t base, uint32_t lo, uint32_t hi,
+                               uint32_t floor, uint32_t sens, bool active, uint8_t reason) {
+    uint16_t nw = q_next(g_evt_w);
+    if (nw == g_evt_r) {
+        g_evt_r = q_next(g_evt_r); // 溢れたら最古を捨てる
+    }
+
+    ChatterEvent& e = g_evt_q[g_evt_w];
+    e.t_us = now_us_from_dwt();
+    e.key_name = key_name;
+    e.idx = idx;
+    e.src = src;
+    e.mux = mux;
+    e.raw = sat_u16(raw);
+    e.base = sat_u16(base);
+    e.lo = sat_u16(lo);
+    e.hi = sat_u16(hi);
+    e.floor = sat_u16(floor);
+    e.sens = sat_u16(sens);
+    e.active = active ? 1U : 0U;
+    e.reason = reason;
+
+    g_evt_w = nw;
+}
+
+static void flush_chatter_events(uint32_t budget) {
+    while (g_evt_r != g_evt_w && budget > 0U) {
+        const ChatterEvent& e = g_evt_q[g_evt_r];
+        const char* why = (e.reason == 1U) ? "ON" : (e.reason == 2U) ? "OFF" : "JUMP";
+        printf("[CHT] t=%luus k=%s idx=%u s=%u m=%u raw=%u base=%u lo=%u hi=%u floor=%u sens=%u act=%u ev=%s\r\n",
+               (unsigned long)e.t_us, e.key_name, e.idx, e.src, e.mux,
+               e.raw, e.base, e.lo, e.hi, e.floor, e.sens, e.active, why);
+        g_evt_r = q_next(g_evt_r);
+        budget--;
+    }
+}
+#endif
+
 extern "C" void loop()
 {
     static uint32_t mux_adc[RapidTriggerKeyboard::MUX_CH_COUNT][RapidTriggerKeyboard::SOURCE_COUNT] = {{0}};
@@ -600,16 +678,15 @@ extern "C" void loop()
             selectMuxChannel(ch);
             delay_us(5);  // MUXセトリング (5μs)
 
-            // 3サンプル中央値フィルタ (スパイクノイズを完全除去)
+            // 3サンプル中央値フィルタ (スパイクノイズを抑制)
             uint32_t a = readADCFast(adc.hadc);
             uint32_t b = readADCFast(adc.hadc);
             uint32_t c = readADCFast(adc.hadc);
-            
-            // a,b,c をソートして中央値をbに残す
+
             if (a > b) { uint32_t t = a; a = b; b = t; }
             if (b > c) { uint32_t t = b; b = c; c = t; }
             if (a > b) { uint32_t t = a; a = b; b = t; }
-            
+
             uint32_t val = b;
 
             keyboard.updateKeyByMux(ch, src, val);
@@ -647,6 +724,83 @@ extern "C" void loop()
             }
         }
     }
+
+#if DBG_CHATTER_TRACE
+    {
+        // 4キー: idx26, src=1, mux=11 / Uキー: idx76, src=5, mux=5
+        const uint8_t idx4 = 26, src4 = 1, mux4 = 11;
+        const uint8_t idxU = 76, srcU = 5, muxU = 5;
+
+        static bool prev4 = false;
+        static bool prevU = false;
+        static uint32_t prevRaw4 = 0;
+        static uint32_t prevRawU = 0;
+        static bool inited = false;
+        static uint32_t last_hb = 0;
+
+        uint32_t raw4 = mux_adc[mux4][src4];
+        uint32_t rawU = mux_adc[muxU][srcU];
+
+        uint32_t base4 = keyboard.getCalibBase(idx4);
+        uint32_t lo4 = keyboard.getLowPeak(idx4);
+        uint32_t hi4 = keyboard.getHighPeak(idx4);
+        uint32_t sens4 = keyboard.getSensitivity(idx4);
+        uint32_t floor4 = base4 + keyboard.getDeadZone(idx4);
+        bool act4 = keyboard.isKeyActive(idx4);
+
+        uint32_t baseU = keyboard.getCalibBase(idxU);
+        uint32_t loU = keyboard.getLowPeak(idxU);
+        uint32_t hiU = keyboard.getHighPeak(idxU);
+        uint32_t sensU = keyboard.getSensitivity(idxU);
+        uint32_t floorU = baseU + keyboard.getDeadZone(idxU);
+        bool actU = keyboard.isKeyActive(idxU);
+
+        // 1秒ごとに生存確認を出す (イベント未発生時の確認用)
+        if ((now - last_hb) >= 1000U) {
+            last_hb = now;
+            printf("[CHT] alive t=%lums q=%u raw4=%lu rawU=%lu act4=%d actU=%d\r\n",
+                   (unsigned long)now,
+                   (unsigned int)((g_evt_w - g_evt_r) & 127U),
+                   (unsigned long)raw4,
+                   (unsigned long)rawU,
+                   act4 ? 1 : 0,
+                   actU ? 1 : 0);
+        }
+
+        if (!inited) {
+            inited = true;
+            prev4 = act4;
+            prevU = actU;
+            prevRaw4 = raw4;
+            prevRawU = rawU;
+        } else {
+            if (act4 != prev4) {
+                push_chatter_event("4", idx4, src4, mux4, raw4, base4, lo4, hi4, floor4, sens4, act4, act4 ? 1U : 2U);
+            }
+            if (actU != prevU) {
+                push_chatter_event("U", idxU, srcU, muxU, rawU, baseU, loU, hiU, floorU, sensU, actU, actU ? 1U : 2U);
+            }
+
+            const uint32_t JUMP_THR = 18;
+            uint32_t d4 = (raw4 > prevRaw4) ? (raw4 - prevRaw4) : (prevRaw4 - raw4);
+            uint32_t dU = (rawU > prevRawU) ? (rawU - prevRawU) : (prevRawU - rawU);
+
+            if (d4 >= JUMP_THR) {
+                push_chatter_event("4", idx4, src4, mux4, raw4, base4, lo4, hi4, floor4, sens4, act4, 3U);
+            }
+            if (dU >= JUMP_THR) {
+                push_chatter_event("U", idxU, srcU, muxU, rawU, baseU, loU, hiU, floorU, sensU, actU, 3U);
+            }
+
+            prev4 = act4;
+            prevU = actU;
+            prevRaw4 = raw4;
+            prevRawU = rawU;
+        }
+
+        flush_chatter_events(6);
+    }
+#endif
 
     // デバッグ出力 (10msに1回, 4キー専用高速デバッグ)
     static uint32_t last_print = 0;
