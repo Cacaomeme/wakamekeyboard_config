@@ -32,6 +32,10 @@ volatile uint8_t last_payload[4] = {0};
 #define CMD_GET_KEYCODE      0x04
 #define CMD_SET_DEADZONE     0x05
 #define CMD_GET_DEADZONE     0x06
+#define CMD_SET_ON_THRESHOLD 0x07
+#define CMD_GET_ON_THRESHOLD 0x08
+#define CMD_SET_OFF_THRESHOLD 0x09
+#define CMD_GET_OFF_THRESHOLD 0x0A
 #define CMD_SAVE_TO_FLASH    0x10
 #define CMD_RESET_DEFAULTS   0x11
 #define CMD_GET_KEY_COUNT    0x20
@@ -45,6 +49,9 @@ volatile uint8_t last_payload[4] = {0};
 #define RESP_OK              0x00
 #define RESP_ERROR           0x01
 #define RESP_INVALID_PARAM   0x02
+
+// 0 にすれば全て無効化できる
+#define DBG_CHATTER_TRACE 1
 
 // ===== ADCソース定義 =====
 // 6つのADCソース (各MUXの出力先)
@@ -241,6 +248,68 @@ extern "C" void ProcessFeatureReport(uint8_t* data, uint16_t len, uint8_t* respo
             uint16_t s = (uint16_t)keyboard.getSensitivity(keyIdx);
             response[2] = (uint8_t)(s & 0xFF);
             response[3] = (uint8_t)(s >> 8);
+        }
+        break;
+    }
+    case CMD_SET_ON_THRESHOLD: {
+        uint8_t keyIdx = local[1];
+        uint16_t value = (uint16_t)local[2] | ((uint16_t)local[3] << 8);
+        if (value < 1 || value > 1000) {
+            response[1] = RESP_INVALID_PARAM; break;
+        }
+        keyboard.setOnThreshold((int)keyIdx, (uint32_t)value);
+        response[1] = RESP_OK;
+        break;
+    }
+    case CMD_GET_ON_THRESHOLD: {
+        uint8_t keyIdx = local[1];
+        if (keyIdx >= RapidTriggerKeyboard::TOTAL_KEY_COUNT && keyIdx != 0xFF) {
+            response[1] = RESP_INVALID_PARAM; break;
+        }
+        response[1] = RESP_OK;
+        if (keyIdx == 0xFF) {
+            int count = RapidTriggerKeyboard::TOTAL_KEY_COUNT;
+            if (count > 15) count = 15;
+            for (int i = 0; i < count; i++) {
+                uint16_t v = (uint16_t)keyboard.getOnThreshold(i);
+                response[2 + i * 2] = (uint8_t)(v & 0xFF);
+                response[2 + i * 2 + 1] = (uint8_t)(v >> 8);
+            }
+        } else {
+            uint16_t v = (uint16_t)keyboard.getOnThreshold(keyIdx);
+            response[2] = (uint8_t)(v & 0xFF);
+            response[3] = (uint8_t)(v >> 8);
+        }
+        break;
+    }
+    case CMD_SET_OFF_THRESHOLD: {
+        uint8_t keyIdx = local[1];
+        uint16_t value = (uint16_t)local[2] | ((uint16_t)local[3] << 8);
+        if (value < 1 || value > 1000) {
+            response[1] = RESP_INVALID_PARAM; break;
+        }
+        keyboard.setOffThreshold((int)keyIdx, (uint32_t)value);
+        response[1] = RESP_OK;
+        break;
+    }
+    case CMD_GET_OFF_THRESHOLD: {
+        uint8_t keyIdx = local[1];
+        if (keyIdx >= RapidTriggerKeyboard::TOTAL_KEY_COUNT && keyIdx != 0xFF) {
+            response[1] = RESP_INVALID_PARAM; break;
+        }
+        response[1] = RESP_OK;
+        if (keyIdx == 0xFF) {
+            int count = RapidTriggerKeyboard::TOTAL_KEY_COUNT;
+            if (count > 15) count = 15;
+            for (int i = 0; i < count; i++) {
+                uint16_t v = (uint16_t)keyboard.getOffThreshold(i);
+                response[2 + i * 2] = (uint8_t)(v & 0xFF);
+                response[2 + i * 2 + 1] = (uint8_t)(v >> 8);
+            }
+        } else {
+            uint16_t v = (uint16_t)keyboard.getOffThreshold(keyIdx);
+            response[2] = (uint8_t)(v & 0xFF);
+            response[3] = (uint8_t)(v >> 8);
         }
         break;
     }
@@ -552,6 +621,81 @@ static inline uint32_t readADCFast(ADC_HandleTypeDef* hadc) {
     return inst->DR;
 }
 
+// ===== Chatter Debug (W専用) =====
+#if DBG_CHATTER_TRACE
+struct ChatterEvent {
+    uint32_t t_us;
+    const char* key_name;
+    uint8_t idx;
+    uint8_t src;
+    uint8_t mux;
+    uint16_t raw;
+    uint16_t base;
+    uint16_t lo;
+    uint16_t hi;
+    uint16_t floor;
+    uint16_t sens;
+    uint8_t active;
+    uint8_t reason; // 1:ON edge, 2:OFF edge, 3:raw jump
+};
+
+static ChatterEvent g_evt_q[128];
+static uint16_t g_evt_w = 0;
+static uint16_t g_evt_r = 0;
+
+static inline uint16_t sat_u16(uint32_t v) {
+    return (v > 65535U) ? 65535U : (uint16_t)v;
+}
+
+static inline uint32_t now_us_from_dwt() {
+    uint32_t div = (SystemCoreClock / 1000000U);
+    if (div == 0) return 0;
+    return DWT->CYCCNT / div;
+}
+
+static inline uint16_t q_next(uint16_t v) {
+    return (uint16_t)((v + 1U) & 127U);
+}
+
+static void push_chatter_event(const char* key_name, uint8_t idx, uint8_t src, uint8_t mux,
+                               uint32_t raw, uint32_t base, uint32_t lo, uint32_t hi,
+                               uint32_t floor, uint32_t sens, bool active, uint8_t reason) {
+    uint16_t nw = q_next(g_evt_w);
+    if (nw == g_evt_r) {
+        g_evt_r = q_next(g_evt_r); // 溢れたら最古を捨てる
+    }
+
+    ChatterEvent& e = g_evt_q[g_evt_w];
+    e.t_us = now_us_from_dwt();
+    e.key_name = key_name;
+    e.idx = idx;
+    e.src = src;
+    e.mux = mux;
+    e.raw = sat_u16(raw);
+    e.base = sat_u16(base);
+    e.lo = sat_u16(lo);
+    e.hi = sat_u16(hi);
+    e.floor = sat_u16(floor);
+    e.sens = sat_u16(sens);
+    e.active = active ? 1U : 0U;
+    e.reason = reason;
+
+    g_evt_w = nw;
+}
+
+static void flush_chatter_events(uint32_t budget) {
+    while (g_evt_r != g_evt_w && budget > 0U) {
+        const ChatterEvent& e = g_evt_q[g_evt_r];
+        const char* why = (e.reason == 1U) ? "ON" : (e.reason == 2U) ? "OFF" : "JUMP";
+        printf("[CHT] t=%luus k=%s idx=%u s=%u m=%u raw=%u base=%u lo=%u hi=%u floor=%u sens=%u act=%u ev=%s\r\n",
+               (unsigned long)e.t_us, e.key_name, e.idx, e.src, e.mux,
+               e.raw, e.base, e.lo, e.hi, e.floor, e.sens, e.active, why);
+        g_evt_r = q_next(g_evt_r);
+        budget--;
+    }
+}
+#endif
+
 extern "C" void loop()
 {
     static uint32_t mux_adc[RapidTriggerKeyboard::MUX_CH_COUNT][RapidTriggerKeyboard::SOURCE_COUNT] = {{0}};
@@ -600,16 +744,15 @@ extern "C" void loop()
             selectMuxChannel(ch);
             delay_us(5);  // MUXセトリング (5μs)
 
-            // 3サンプル中央値フィルタ (スパイクノイズを完全除去)
+            // 3サンプル中央値フィルタ (スパイクノイズを抑制)
             uint32_t a = readADCFast(adc.hadc);
             uint32_t b = readADCFast(adc.hadc);
             uint32_t c = readADCFast(adc.hadc);
-            
-            // a,b,c をソートして中央値をbに残す
+
             if (a > b) { uint32_t t = a; a = b; b = t; }
             if (b > c) { uint32_t t = b; b = c; c = t; }
             if (a > b) { uint32_t t = a; a = b; b = t; }
-            
+
             uint32_t val = b;
 
             keyboard.updateKeyByMux(ch, src, val);
@@ -648,15 +791,67 @@ extern "C" void loop()
         }
     }
 
-    // デバッグ出力 (10msに1回, 4キー専用高速デバッグ)
+#if DBG_CHATTER_TRACE
+    {
+        // Wキー: idx8, src=0, mux=8
+        const uint8_t idxW = 8, srcW = 0, muxW = 8;
+
+        static bool prevW = false;
+        static uint32_t prevRawW = 0;
+        static bool inited = false;
+        static uint32_t last_hb = 0;
+
+        uint32_t rawW = mux_adc[muxW][srcW];
+
+        uint32_t baseW = keyboard.getCalibBase(idxW);
+        uint32_t loW = keyboard.getLowPeak(idxW);
+        uint32_t hiW = keyboard.getHighPeak(idxW);
+        uint32_t onThrW = keyboard.getOnThreshold(idxW);
+        uint32_t floorW = baseW + keyboard.getDeadZone(idxW);
+        bool actW = keyboard.isKeyActive(idxW);
+
+        // 1秒ごとに生存確認を出す (イベント未発生時の確認用)
+        if ((now - last_hb) >= 1000U) {
+            last_hb = now;
+            printf("[CHT] alive t=%lums q=%u rawW=%lu actW=%d\r\n",
+                   (unsigned long)now,
+                   (unsigned int)((g_evt_w - g_evt_r) & 127U),
+                   (unsigned long)rawW,
+                   actW ? 1 : 0);
+        }
+
+        if (!inited) {
+            inited = true;
+            prevW = actW;
+            prevRawW = rawW;
+        } else {
+            if (actW != prevW) {
+                push_chatter_event("W", idxW, srcW, muxW, rawW, baseW, loW, hiW, floorW, onThrW, actW, actW ? 1U : 2U);
+            }
+
+            const uint32_t JUMP_THR = 18;
+            uint32_t dW = (rawW > prevRawW) ? (rawW - prevRawW) : (prevRawW - rawW);
+            if (dW >= JUMP_THR) {
+                push_chatter_event("W", idxW, srcW, muxW, rawW, baseW, loW, hiW, floorW, onThrW, actW, 3U);
+            }
+
+            prevW = actW;
+            prevRawW = rawW;
+        }
+
+        flush_chatter_events(6);
+    }
+#endif
+
+    // デバッグ出力 (10msに1回, Wキー専用高速デバッグ)
     static uint32_t last_print = 0;
     if (HAL_GetTick() - last_print > 10) {
         last_print = HAL_GetTick();
 
-        // 4キー: idx26, src=1, mux=11
-        int idx = 26;
-        int src = 1;
-        int mux = 11;
+        // Wキー: idx8, src=0, mux=8
+        int idx = 8;
+        int src = 0;
+        int mux = 8;
         uint32_t raw = mux_adc[mux][src];
         uint32_t base = keyboard.getCalibBase(idx);
         uint32_t lo = keyboard.getLowPeak(idx);
