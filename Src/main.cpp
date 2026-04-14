@@ -32,6 +32,10 @@ volatile uint8_t last_payload[4] = {0};
 #define CMD_GET_KEYCODE      0x04
 #define CMD_SET_DEADZONE     0x05
 #define CMD_GET_DEADZONE     0x06
+#define CMD_SET_ON_THRESHOLD 0x07
+#define CMD_GET_ON_THRESHOLD 0x08
+#define CMD_SET_OFF_THRESHOLD 0x09
+#define CMD_GET_OFF_THRESHOLD 0x0A
 #define CMD_SAVE_TO_FLASH    0x10
 #define CMD_RESET_DEFAULTS   0x11
 #define CMD_GET_KEY_COUNT    0x20
@@ -244,6 +248,68 @@ extern "C" void ProcessFeatureReport(uint8_t* data, uint16_t len, uint8_t* respo
             uint16_t s = (uint16_t)keyboard.getSensitivity(keyIdx);
             response[2] = (uint8_t)(s & 0xFF);
             response[3] = (uint8_t)(s >> 8);
+        }
+        break;
+    }
+    case CMD_SET_ON_THRESHOLD: {
+        uint8_t keyIdx = local[1];
+        uint16_t value = (uint16_t)local[2] | ((uint16_t)local[3] << 8);
+        if (value < 1 || value > 1000) {
+            response[1] = RESP_INVALID_PARAM; break;
+        }
+        keyboard.setOnThreshold((int)keyIdx, (uint32_t)value);
+        response[1] = RESP_OK;
+        break;
+    }
+    case CMD_GET_ON_THRESHOLD: {
+        uint8_t keyIdx = local[1];
+        if (keyIdx >= RapidTriggerKeyboard::TOTAL_KEY_COUNT && keyIdx != 0xFF) {
+            response[1] = RESP_INVALID_PARAM; break;
+        }
+        response[1] = RESP_OK;
+        if (keyIdx == 0xFF) {
+            int count = RapidTriggerKeyboard::TOTAL_KEY_COUNT;
+            if (count > 15) count = 15;
+            for (int i = 0; i < count; i++) {
+                uint16_t v = (uint16_t)keyboard.getOnThreshold(i);
+                response[2 + i * 2] = (uint8_t)(v & 0xFF);
+                response[2 + i * 2 + 1] = (uint8_t)(v >> 8);
+            }
+        } else {
+            uint16_t v = (uint16_t)keyboard.getOnThreshold(keyIdx);
+            response[2] = (uint8_t)(v & 0xFF);
+            response[3] = (uint8_t)(v >> 8);
+        }
+        break;
+    }
+    case CMD_SET_OFF_THRESHOLD: {
+        uint8_t keyIdx = local[1];
+        uint16_t value = (uint16_t)local[2] | ((uint16_t)local[3] << 8);
+        if (value < 1 || value > 1000) {
+            response[1] = RESP_INVALID_PARAM; break;
+        }
+        keyboard.setOffThreshold((int)keyIdx, (uint32_t)value);
+        response[1] = RESP_OK;
+        break;
+    }
+    case CMD_GET_OFF_THRESHOLD: {
+        uint8_t keyIdx = local[1];
+        if (keyIdx >= RapidTriggerKeyboard::TOTAL_KEY_COUNT && keyIdx != 0xFF) {
+            response[1] = RESP_INVALID_PARAM; break;
+        }
+        response[1] = RESP_OK;
+        if (keyIdx == 0xFF) {
+            int count = RapidTriggerKeyboard::TOTAL_KEY_COUNT;
+            if (count > 15) count = 15;
+            for (int i = 0; i < count; i++) {
+                uint16_t v = (uint16_t)keyboard.getOffThreshold(i);
+                response[2 + i * 2] = (uint8_t)(v & 0xFF);
+                response[2 + i * 2 + 1] = (uint8_t)(v >> 8);
+            }
+        } else {
+            uint16_t v = (uint16_t)keyboard.getOffThreshold(keyIdx);
+            response[2] = (uint8_t)(v & 0xFF);
+            response[3] = (uint8_t)(v >> 8);
         }
         break;
     }
@@ -555,7 +621,7 @@ static inline uint32_t readADCFast(ADC_HandleTypeDef* hadc) {
     return inst->DR;
 }
 
-// ===== Chatter Debug (4/U専用) =====
+// ===== Chatter Debug (W専用) =====
 #if DBG_CHATTER_TRACE
 struct ChatterEvent {
     uint32_t t_us;
@@ -727,90 +793,65 @@ extern "C" void loop()
 
 #if DBG_CHATTER_TRACE
     {
-        // 4キー: idx26, src=1, mux=11 / Uキー: idx76, src=5, mux=5
-        const uint8_t idx4 = 26, src4 = 1, mux4 = 11;
-        const uint8_t idxU = 76, srcU = 5, muxU = 5;
+        // Wキー: idx8, src=0, mux=8
+        const uint8_t idxW = 8, srcW = 0, muxW = 8;
 
-        static bool prev4 = false;
-        static bool prevU = false;
-        static uint32_t prevRaw4 = 0;
-        static uint32_t prevRawU = 0;
+        static bool prevW = false;
+        static uint32_t prevRawW = 0;
         static bool inited = false;
         static uint32_t last_hb = 0;
 
-        uint32_t raw4 = mux_adc[mux4][src4];
-        uint32_t rawU = mux_adc[muxU][srcU];
+        uint32_t rawW = mux_adc[muxW][srcW];
 
-        uint32_t base4 = keyboard.getCalibBase(idx4);
-        uint32_t lo4 = keyboard.getLowPeak(idx4);
-        uint32_t hi4 = keyboard.getHighPeak(idx4);
-        uint32_t sens4 = keyboard.getSensitivity(idx4);
-        uint32_t floor4 = base4 + keyboard.getDeadZone(idx4);
-        bool act4 = keyboard.isKeyActive(idx4);
-
-        uint32_t baseU = keyboard.getCalibBase(idxU);
-        uint32_t loU = keyboard.getLowPeak(idxU);
-        uint32_t hiU = keyboard.getHighPeak(idxU);
-        uint32_t sensU = keyboard.getSensitivity(idxU);
-        uint32_t floorU = baseU + keyboard.getDeadZone(idxU);
-        bool actU = keyboard.isKeyActive(idxU);
+        uint32_t baseW = keyboard.getCalibBase(idxW);
+        uint32_t loW = keyboard.getLowPeak(idxW);
+        uint32_t hiW = keyboard.getHighPeak(idxW);
+        uint32_t onThrW = keyboard.getOnThreshold(idxW);
+        uint32_t floorW = baseW + keyboard.getDeadZone(idxW);
+        bool actW = keyboard.isKeyActive(idxW);
 
         // 1秒ごとに生存確認を出す (イベント未発生時の確認用)
         if ((now - last_hb) >= 1000U) {
             last_hb = now;
-            printf("[CHT] alive t=%lums q=%u raw4=%lu rawU=%lu act4=%d actU=%d\r\n",
+            printf("[CHT] alive t=%lums q=%u rawW=%lu actW=%d\r\n",
                    (unsigned long)now,
                    (unsigned int)((g_evt_w - g_evt_r) & 127U),
-                   (unsigned long)raw4,
-                   (unsigned long)rawU,
-                   act4 ? 1 : 0,
-                   actU ? 1 : 0);
+                   (unsigned long)rawW,
+                   actW ? 1 : 0);
         }
 
         if (!inited) {
             inited = true;
-            prev4 = act4;
-            prevU = actU;
-            prevRaw4 = raw4;
-            prevRawU = rawU;
+            prevW = actW;
+            prevRawW = rawW;
         } else {
-            if (act4 != prev4) {
-                push_chatter_event("4", idx4, src4, mux4, raw4, base4, lo4, hi4, floor4, sens4, act4, act4 ? 1U : 2U);
-            }
-            if (actU != prevU) {
-                push_chatter_event("U", idxU, srcU, muxU, rawU, baseU, loU, hiU, floorU, sensU, actU, actU ? 1U : 2U);
+            if (actW != prevW) {
+                push_chatter_event("W", idxW, srcW, muxW, rawW, baseW, loW, hiW, floorW, onThrW, actW, actW ? 1U : 2U);
             }
 
             const uint32_t JUMP_THR = 18;
-            uint32_t d4 = (raw4 > prevRaw4) ? (raw4 - prevRaw4) : (prevRaw4 - raw4);
-            uint32_t dU = (rawU > prevRawU) ? (rawU - prevRawU) : (prevRawU - rawU);
-
-            if (d4 >= JUMP_THR) {
-                push_chatter_event("4", idx4, src4, mux4, raw4, base4, lo4, hi4, floor4, sens4, act4, 3U);
-            }
-            if (dU >= JUMP_THR) {
-                push_chatter_event("U", idxU, srcU, muxU, rawU, baseU, loU, hiU, floorU, sensU, actU, 3U);
+            uint32_t dW = (rawW > prevRawW) ? (rawW - prevRawW) : (prevRawW - rawW);
+            if (dW >= JUMP_THR) {
+                push_chatter_event("W", idxW, srcW, muxW, rawW, baseW, loW, hiW, floorW, onThrW, actW, 3U);
             }
 
-            prev4 = act4;
-            prevU = actU;
-            prevRaw4 = raw4;
-            prevRawU = rawU;
+            prevW = actW;
+            prevRawW = rawW;
         }
 
         flush_chatter_events(6);
     }
 #endif
 
-    // デバッグ出力 (10msに1回, 4キー専用高速デバッグ)
+    // デバッグ出力 (10msに1回, Wキー専用高速デバッグ)
     static uint32_t last_print = 0;
     if (HAL_GetTick() - last_print > 10) {
         last_print = HAL_GetTick();
 
-        // 4キー: idx26, src=1, mux=11
-        int idx = 26;
-        int src = 1;
-        int mux = 11;
+        // Wキー: idx8, src=0, mux=8
+        int idx = 8;
+        int src = 0;
+        int mux = 8;
         uint32_t raw = mux_adc[mux][src];
         uint32_t base = keyboard.getCalibBase(idx);
         uint32_t lo = keyboard.getLowPeak(idx);

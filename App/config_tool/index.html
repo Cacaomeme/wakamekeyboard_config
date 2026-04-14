@@ -951,11 +951,18 @@
                     <div id="detailContent" style="display:none">
                         <h3 id="detailTitle">KP 0</h3>
                         <div class="param-row">
-                            <span class="param-label">感度 (RT)</span>
+                            <span class="param-label">ONしきい値</span>
                             <input type="range" class="param-slider" id="pSens" min="1" max="1000"
                                 oninput="onDetailSlider('sens')">
                             <input type="number" class="param-num" id="pSensNum" min="1" max="1000"
                                 onchange="onDetailNum('sens')" onkeydown="if(event.key==='Enter')this.blur();">
+                        </div>
+                        <div class="param-row">
+                            <span class="param-label">OFFしきい値</span>
+                            <input type="range" class="param-slider" id="pOff" min="1" max="1000"
+                                oninput="onDetailSlider('off')">
+                            <input type="number" class="param-num" id="pOffNum" min="1" max="1000"
+                                onchange="onDetailNum('off')" onkeydown="if(event.key==='Enter')this.blur();">
                         </div>
                         <div class="param-row">
                             <span class="param-label">デッドゾーン</span>
@@ -977,13 +984,22 @@
             <div class="bulk-section">
                 <h4>🔧 一括設定変更</h4>
                 <div class="bulk-row">
-                    <label>全キー感度</label>
+                    <label>全キーONしきい値</label>
                     <input type="range" style="flex:1" id="bulkSens" min="1" max="1000" value="50"
                         oninput="document.getElementById('bulkSensVal').value=this.value">
                     <input type="number" class="param-num" id="bulkSensVal" min="1" max="1000" value="50"
                         onchange="document.getElementById('bulkSens').value=this.value"
                         onkeydown="if(event.key==='Enter')this.blur();">
                     <button class="btn btn-outline btn-sm" onclick="applyBulk('sens')">適用</button>
+                </div>
+                <div class="bulk-row">
+                    <label>全キーOFFしきい値</label>
+                    <input type="range" style="flex:1" id="bulkOff" min="1" max="1000" value="100"
+                        oninput="document.getElementById('bulkOffVal').value=this.value">
+                    <input type="number" class="param-num" id="bulkOffVal" min="1" max="1000" value="100"
+                        onchange="document.getElementById('bulkOff').value=this.value"
+                        onkeydown="if(event.key==='Enter')this.blur();">
+                    <button class="btn btn-outline btn-sm" onclick="applyBulk('off')">適用</button>
                 </div>
                 <div class="bulk-row">
                     <label>全キーデッドゾーン</label>
@@ -1072,6 +1088,8 @@
             SET_SENSITIVITY: 0x01, GET_SENSITIVITY: 0x02,
             SET_KEYCODE: 0x03, GET_KEYCODE: 0x04,
             SET_DEADZONE: 0x05, GET_DEADZONE: 0x06,
+            SET_ON_THRESHOLD: 0x07, GET_ON_THRESHOLD: 0x08,
+            SET_OFF_THRESHOLD: 0x09, GET_OFF_THRESHOLD: 0x0A,
             SAVE_TO_FLASH: 0x10, RESET_DEFAULTS: 0x11,
             GET_KEY_COUNT: 0x20,
             SET_LED_MODE: 0x30, GET_LED_MODE: 0x31,
@@ -1191,6 +1209,8 @@
         const keyCount = KEY_NAMES.length;
         let sensValues = new Array(keyCount).fill(50);
         let sensOrig = new Array(keyCount).fill(50);
+        let offValues = new Array(keyCount).fill(100);
+        let offOrig = new Array(keyCount).fill(100);
         let dzValues = new Array(keyCount).fill(30);
         let dzOrig = new Array(keyCount).fill(30);
         let kcValues = DEFAULT_KEYCODES.slice();
@@ -1297,6 +1317,8 @@
 
             document.getElementById('pSens').value = sensValues[idx];
             document.getElementById('pSensNum').value = sensValues[idx];
+            document.getElementById('pOff').value = offValues[idx];
+            document.getElementById('pOffNum').value = offValues[idx];
             document.getElementById('pDZ').value = dzValues[idx];
             document.getElementById('pDZNum').value = dzValues[idx];
 
@@ -1314,6 +1336,10 @@
                 const v = parseInt(document.getElementById('pSens').value);
                 sensValues[selectedKey] = v;
                 document.getElementById('pSensNum').value = v;
+            } else if (type === 'off') {
+                const v = parseInt(document.getElementById('pOff').value);
+                offValues[selectedKey] = v;
+                document.getElementById('pOffNum').value = v;
             } else if (type === 'dz') {
                 const v = parseInt(document.getElementById('pDZ').value);
                 dzValues[selectedKey] = v;
@@ -1331,6 +1357,13 @@
                 sensValues[selectedKey] = v;
                 document.getElementById('pSens').value = v;
                 document.getElementById('pSensNum').value = v;
+            } else if (type === 'off') {
+                let v = parseInt(document.getElementById('pOffNum').value);
+                if (isNaN(v)) { document.getElementById('pOffNum').value = offValues[selectedKey]; return; }
+                v = Math.max(1, Math.min(1000, v));
+                offValues[selectedKey] = v;
+                document.getElementById('pOff').value = v;
+                document.getElementById('pOffNum').value = v;
             } else if (type === 'dz') {
                 let v = parseInt(document.getElementById('pDZNum').value);
                 if (isNaN(v)) { document.getElementById('pDZNum').value = dzValues[selectedKey]; return; }
@@ -1360,6 +1393,7 @@
             const rect = document.querySelector(`.kb-key[data-key="${idx}"]`);
             if (!rect) return;
             const mod = sensValues[idx] !== sensOrig[idx] ||
+                offValues[idx] !== offOrig[idx] ||
                 dzValues[idx] !== dzOrig[idx] ||
                 kcValues[idx] !== kcOrig[idx];
             rect.classList.toggle('modified', mod);
@@ -1370,7 +1404,12 @@
                 const v = parseInt(document.getElementById('bulkSensVal').value);
                 if (isNaN(v) || v < 1 || v > 1000) return;
                 for (let i = 0; i < keyCount; i++) sensValues[i] = v;
-                log(`全キー感度を ${v} に設定`, 'info');
+                log(`全キーONしきい値を ${v} に設定`, 'info');
+            } else if (type === 'off') {
+                const v = parseInt(document.getElementById('bulkOffVal').value);
+                if (isNaN(v) || v < 1 || v > 1000) return;
+                for (let i = 0; i < keyCount; i++) offValues[i] = v;
+                log(`全キーOFFしきい値を ${v} に設定`, 'info');
             } else if (type === 'dz') {
                 const v = parseInt(document.getElementById('bulkDZVal').value);
                 if (isNaN(v) || v < 0 || v > 500) return;
@@ -1777,8 +1816,8 @@
             try {
                 log('全設定を読み込み中...', 'info');
 
-                // Sensitivity
-                await sendFR([CMD.GET_SENSITIVITY, 0xFF]); let resp = await recvFR();
+                // ON threshold
+                await sendFR([CMD.GET_ON_THRESHOLD, 0xFF]); let resp = await recvFR();
                 if (resp[1] === RESP.OK) {
                     for (let i = 0; i < keyCount && i < 15; i++) {
                         const v = resp[2 + i * 2] | (resp[3 + i * 2] << 8);
@@ -1786,8 +1825,21 @@
                     }
                 }
                 for (let i = 15; i < keyCount; i++) {
-                    await sendFR([CMD.GET_SENSITIVITY, i]); const r = await recvFR();
+                    await sendFR([CMD.GET_ON_THRESHOLD, i]); const r = await recvFR();
                     if (r[1] === RESP.OK) { const v = r[2] | (r[3] << 8); if (v >= 1 && v <= 4095) { sensValues[i] = v; sensOrig[i] = v; } }
+                }
+
+                // OFF threshold
+                await sendFR([CMD.GET_OFF_THRESHOLD, 0xFF]); resp = await recvFR();
+                if (resp[1] === RESP.OK) {
+                    for (let i = 0; i < keyCount && i < 15; i++) {
+                        const v = resp[2 + i * 2] | (resp[3 + i * 2] << 8);
+                        if (v >= 1 && v <= 4095) { offValues[i] = v; offOrig[i] = v; }
+                    }
+                }
+                for (let i = 15; i < keyCount; i++) {
+                    await sendFR([CMD.GET_OFF_THRESHOLD, i]); const r = await recvFR();
+                    if (r[1] === RESP.OK) { const v = r[2] | (r[3] << 8); if (v >= 1 && v <= 4095) { offValues[i] = v; offOrig[i] = v; } }
                 }
 
                 // Dead Zone
@@ -1868,10 +1920,17 @@
                 for (let i = 0; i < keyCount; i++) {
                     if (sensValues[i] !== sensOrig[i]) {
                         const v = sensValues[i];
-                        await sendFR([CMD.SET_SENSITIVITY, i, v & 0xFF, (v >> 8) & 0xFF]);
+                        await sendFR([CMD.SET_ON_THRESHOLD, i, v & 0xFF, (v >> 8) & 0xFF]);
                         const r = await recvFR();
                         if (r[1] === RESP.OK) { sensOrig[i] = v; count++; }
-                        else log(`Key ${i} 感度書込エラー`, 'error');
+                        else log(`Key ${i} ONしきい値書込エラー`, 'error');
+                    }
+                    if (offValues[i] !== offOrig[i]) {
+                        const v = offValues[i];
+                        await sendFR([CMD.SET_OFF_THRESHOLD, i, v & 0xFF, (v >> 8) & 0xFF]);
+                        const r = await recvFR();
+                        if (r[1] === RESP.OK) { offOrig[i] = v; count++; }
+                        else log(`Key ${i} OFFしきい値書込エラー`, 'error');
                     }
                     if (dzValues[i] !== dzOrig[i]) {
                         const v = dzValues[i];

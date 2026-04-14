@@ -53,7 +53,8 @@ struct RapidTriggerState {
 
     uint32_t baseline;
     bool calibrated;
-    uint32_t sensitivity;
+    uint32_t sensitivity_on;
+    uint32_t sensitivity_off;
     uint16_t keycode;        // HIDキーコード (0x00-0xE7: キーボード, 0x8xxx: Consumer)
     uint32_t dead_zone;
 
@@ -115,6 +116,12 @@ public:
     // 感度
     void setSensitivity(int keyIndex, uint32_t value);
     uint32_t getSensitivity(int keyIndex);
+
+    // しきい値 (OFF->ON / ON->OFF)
+    void setOnThreshold(int keyIndex, uint32_t value);
+    uint32_t getOnThreshold(int keyIndex);
+    void setOffThreshold(int keyIndex, uint32_t value);
+    uint32_t getOffThreshold(int keyIndex);
 
     // キーコード (16bit: 0x0000-0x00E7=キーボード, 0x8xxx=Consumer)
     void setKeycode(int keyIndex, uint16_t code);
